@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "adityapratamaf/laravel-cleanarchitecture-cqrs-starter-template",
+    "name": "adityapratamaf/laravel-cleanarchitecture-cqrs",
     "type": "project",
-    "description": "Laravel 12 Clean Architecture + CQRS starter template (API + Blade)",
+    "description": "Laravel 12 Clean Architecture + CQRS (API + Blade)",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

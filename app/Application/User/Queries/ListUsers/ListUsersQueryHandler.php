@@ -14,9 +14,10 @@ class ListUsersQueryHandler
         $qb = UserModel::query();
 
         if ($query->search) {
-            $qb->where(function ($q) use ($query) {
-                $q->where('name', 'like', '%'.$query->search.'%')
-                  ->orWhere('email', 'like', '%'.$query->search.'%');
+            $s = mb_strtolower(trim($query->search));
+            $qb->where(function ($w) use ($s) {
+                $w->whereRaw('LOWER(name) LIKE ?', ["%{$s}%"])
+                ->orWhereRaw('LOWER(email) LIKE ?', ["%{$s}%"]);
             });
         }
 
@@ -31,11 +32,12 @@ class ListUsersQueryHandler
 
         $data = [];
         foreach ($p->items() as $row) {
-            $data[] = new UserDTO(
+            $data[] = new UserDTO
+            (
                 $row->id, 
                 $row->name, 
                 $row->email
-                );
+            );
         }
 
         return new PagedUsersDTO(
