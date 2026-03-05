@@ -1,4 +1,4 @@
-# Laravel Clean Architecture + CQRS Starter Template (Laravel 12)
+# Laravel Clean Architecture + CQRS Starter Template
 
 Starter template Laravel 12 dengan:
 
