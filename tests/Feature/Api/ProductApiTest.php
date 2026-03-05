@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use Tests\TestCase;
+use Laravel\Sanctum\Sanctum;
+use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class ProductApiTest extends TestCase
@@ -11,6 +13,10 @@ class ProductApiTest extends TestCase
 
     public function test_can_create_product_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $res = $this->postJson('/api/products', [
             'name' => 'Keyboard',
             'sku' => 'SKU-KB-001',
@@ -27,6 +33,10 @@ class ProductApiTest extends TestCase
 
     public function test_can_list_products_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $this->postJson('/api/products', [
             'name' => 'Mouse',
             'sku' => 'SKU-MS-001',
@@ -47,6 +57,10 @@ class ProductApiTest extends TestCase
 
     public function test_can_show_product_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $create = $this->postJson('/api/products', [
             'name' => 'Monitor',
             'sku' => 'SKU-MN-001',
@@ -65,6 +79,10 @@ class ProductApiTest extends TestCase
 
     public function test_can_update_product_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $create = $this->postJson('/api/products', [
             'name' => 'Monitor',
             'sku' => 'SKU-MN-001',
@@ -95,6 +113,10 @@ class ProductApiTest extends TestCase
 
     public function test_can_delete_product_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $create = $this->postJson('/api/products', [
             'name' => 'Monitor',
             'sku' => 'SKU-MN-001',
