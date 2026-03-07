@@ -1,5 +1,7 @@
 <h1>Create User</h1>
 
+@include('partials.flash')
+
 <form method="POST" action="/users">
   @csrf
   <p>

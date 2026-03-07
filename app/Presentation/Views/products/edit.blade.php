@@ -1,5 +1,7 @@
 <h1>Edit Product</h1>
 
+@include('partials.flash')
+
 <form method="POST" action="/products/{{ $product->id }}">
   @csrf
   @method('PUT')

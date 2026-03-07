@@ -1,5 +1,7 @@
 <h1>Edit User</h1>
 
+@include('partials.flash')
+
 <form method="POST" action="/users/{{ $user->id }}">
   @csrf
   @method('PUT')

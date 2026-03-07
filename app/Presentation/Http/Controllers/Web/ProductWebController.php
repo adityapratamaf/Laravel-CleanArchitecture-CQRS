@@ -2,6 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Web;
 
+use DomainException;
 use Illuminate\Http\Request;
 use App\Application\Shared\Bus\QueryBus;
 use App\Application\Shared\Bus\CommandBus;
@@ -70,50 +71,80 @@ class ProductWebController
 
     public function store(StoreProductRequest $request, CommandBus $commandBus)
     {
-        $dto = new CreateProductDTO(
-            name: $request->string('name')->toString(),
-            sku: $request->string('sku')->toString(),
-            price: (float) $request->input('price'),
-            stock: (int) $request->input('stock'),
-            description: $request->filled('description') ? (string) $request->input('description') : null,
-        );
+        try {
+            $dto = new CreateProductDTO(
+                name: $request->string('name')->toString(),
+                sku: $request->string('sku')->toString(),
+                price: (float) $request->input('price'),
+                stock: (int) $request->input('stock'),
+                description: $request->filled('description') ? (string) $request->input('description') : null,
+            );
 
-        $commandBus->dispatch(new CreateProductCommand($dto));
+            $commandBus->dispatch(new CreateProductCommand($dto));
 
-        return redirect('/products')->with('success', 'Product created');
+            return redirect('/products')->with('success', 'Product created');
+        } catch (DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function show(int $id, QueryBus $queryBus)
     {
-        $product = $queryBus->ask(new GetProductByIdQuery($id));
-        return view('products.show', compact('product'));
+        try {
+            $product = $queryBus->ask(new GetProductByIdQuery($id));
+            return view('products.show', compact('product'));
+        } catch (DomainException $e) {
+            return redirect('/products')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/products')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function edit(int $id, QueryBus $queryBus)
     {
-        $product = $queryBus->ask(new GetProductByIdQuery($id));
-        return view('products.edit', compact('product'));
+        try {
+            $product = $queryBus->ask(new GetProductByIdQuery($id));
+            return view('products.edit', compact('product'));
+        } catch (DomainException $e) {
+            return redirect('/products')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/products')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function update(int $id, UpdateProductRequest $request, CommandBus $commandBus)
     {
-        $dto = new UpdateProductDTO(
-            id: $id,
-            name: $request->string('name')->toString(),
-            sku: $request->string('sku')->toString(),
-            price: (float) $request->input('price'),
-            stock: (int) $request->input('stock'),
-            description: $request->filled('description') ? (string) $request->input('description') : null,
-        );
+        try {
+            $dto = new UpdateProductDTO(
+                id: $id,
+                name: $request->string('name')->toString(),
+                sku: $request->string('sku')->toString(),
+                price: (float) $request->input('price'),
+                stock: (int) $request->input('stock'),
+                description: $request->filled('description') ? (string) $request->input('description') : null,
+            );
 
-        $commandBus->dispatch(new UpdateProductCommand($dto));
+            $commandBus->dispatch(new UpdateProductCommand($dto));
 
-        return redirect('/products/'.$id)->with('success', 'Product updated');
+            return redirect('/products/'.$id)->with('success', 'Product updated');
+        } catch (DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function destroy(int $id, CommandBus $commandBus)
     {
-        $commandBus->dispatch(new DeleteProductCommand($id));
-        return redirect('/products')->with('success', 'Product deleted');
+        try {
+            $commandBus->dispatch(new DeleteProductCommand($id));
+            return redirect('/products')->with('success', 'Product deleted');
+        } catch (DomainException $e) {
+            return redirect('/products')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/products')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 }
