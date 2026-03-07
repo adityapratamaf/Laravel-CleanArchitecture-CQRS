@@ -47,7 +47,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => 30, // SESSION LIFETIME AKTIF SELAMA 30 MENIT
 
     /*
     |--------------------------------------------------------------------------
