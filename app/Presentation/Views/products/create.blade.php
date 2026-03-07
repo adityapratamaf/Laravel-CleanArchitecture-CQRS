@@ -1,5 +1,7 @@
 <h1>Create Product</h1>
 
+@include('partials.flash')
+
 <form method="POST" action="/products">
   @csrf
 

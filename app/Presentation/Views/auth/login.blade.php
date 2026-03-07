@@ -1,12 +1,6 @@
 <h1>Login</h1>
 
-@if(session('success'))
-  <p style="color: green">{{ session('success') }}</p>
-@endif
-
-@if($errors->any())
-  <p style="color:red">{{ $errors->first() }}</p>
-@endif
+@include('partials.flash')
 
 <form method="POST" action="/login">
   @csrf

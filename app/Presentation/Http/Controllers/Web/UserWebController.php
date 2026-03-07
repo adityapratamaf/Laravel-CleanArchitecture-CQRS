@@ -2,6 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Web;
 
+use DomainException;
 use Illuminate\Http\Request;
 use App\Application\Shared\Bus\QueryBus;
 use App\Application\Shared\Bus\CommandBus;
@@ -70,46 +71,76 @@ class UserWebController
 
     public function store(StoreUserRequest $request, CommandBus $commandBus)
     {
-        $dto = new CreateUserDTO(
-            name: $request->string('name')->toString(),
-            email: $request->string('email')->toString(),
-            password: $request->string('password')->toString(),
-        );
+        try {
+            $dto = new CreateUserDTO(
+                name: $request->string('name')->toString(),
+                email: $request->string('email')->toString(),
+                password: $request->string('password')->toString(),
+            );
 
-        $commandBus->dispatch(new CreateUserCommand($dto));
+            $commandBus->dispatch(new CreateUserCommand($dto));
 
-        return redirect('/users')->with('success', 'User created');
+            return redirect('/users')->with('success', 'User created');
+        } catch (DomainException $e) {
+            return back()->withInput($request->except('password'))->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return back()->withInput($request->except('password'))->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function show(int $id, QueryBus $queryBus)
     {
-        $user = $queryBus->ask(new GetUserByIdQuery($id));
-        return view('users.show', compact('user'));
+        try {
+            $user = $queryBus->ask(new GetUserByIdQuery($id));
+            return view('users.show', compact('user'));
+        } catch (DomainException $e) {
+            return redirect('/users')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/users')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function edit(int $id, QueryBus $queryBus)
     {
-        $user = $queryBus->ask(new GetUserByIdQuery($id));
-        return view('users.edit', compact('user'));
+        try {
+            $user = $queryBus->ask(new GetUserByIdQuery($id));
+            return view('users.edit', compact('user'));
+        } catch (DomainException $e) {
+            return redirect('/users')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/users')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function update(int $id, UpdateUserRequest $request, CommandBus $commandBus)
     {
-        $dto = new UpdateUserDTO(
-            id: $id,
-            name: $request->string('name')->toString(),
-            email: $request->string('email')->toString(),
-            password: $request->filled('password') ? $request->string('password')->toString() : null,
-        );
+        try {
+            $dto = new UpdateUserDTO(
+                id: $id,
+                name: $request->string('name')->toString(),
+                email: $request->string('email')->toString(),
+                password: $request->filled('password') ? $request->string('password')->toString() : null,
+            );
 
-        $commandBus->dispatch(new UpdateUserCommand($dto));
+            $commandBus->dispatch(new UpdateUserCommand($dto));
 
-        return redirect('/users/'.$id)->with('success', 'User updated');
+            return redirect('/users/'.$id)->with('success', 'User updated');
+        } catch (DomainException $e) {
+            return back()->withInput($request->except('password'))->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return back()->withInput($request->except('password'))->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function destroy(int $id, CommandBus $commandBus)
     {
-        $commandBus->dispatch(new DeleteUserCommand($id));
-        return redirect('/users')->with('success', 'User deleted');
+        try {
+            $commandBus->dispatch(new DeleteUserCommand($id));
+            return redirect('/users')->with('success', 'User deleted');
+        } catch (DomainException $e) {
+            return redirect('/users')->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect('/users')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 }
