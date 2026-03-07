@@ -12,7 +12,7 @@ Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'store']);
 Route::post('/logout', LogoutController::class);
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'idle.timeout'])->group(function () {
     Route::get('/users', [UserWebController::class, 'index']);
     Route::get('/users/create', [UserWebController::class, 'create']);
     Route::post('/users', [UserWebController::class, 'store']);
