@@ -28,6 +28,7 @@ Template ini dirancang agar bisa digunakan untuk:
 * ✅ Routes berada di `app/Presentation/Routes`
 * ✅ Views berada di `app/Presentation/Views`
 * ✅ Contoh module: **User** dan **Product** + migration + seeder
+* ✅ Ready for create new module with example: php artisan make:module Product
 * ✅ Ready for Packagist template usage
 
 ---
@@ -1044,10 +1045,115 @@ Contoh:
 
 ---
 
-## 📄 20) License
+## 📄 20) Artisan Module Generator
+
+`make:module` adalah custom Artisan command untuk membantu membuat struktur module baru dengan pola:
+
+- Clean Architecture
+- CQRS
+- DTO
+- API Controller
+- Web Controller
+- Form Request
+- Blade Views
+
+Command ini dibuat untuk mempercepat pembuatan module baru tanpa harus membuat folder dan file satu per satu secara manual.
+
+---
+
+### Tujuan
+
+Generator ini membantu membuat struktur dasar module agar konsisten di seluruh project.
+
+Cocok untuk module seperti:
+
+- Product
+- Category
+- Brand
+- Customer
+- Supplier
+- Order
+
+Generator ini sengaja dibuat tetap sederhana, supaya:
+
+- mudah dipahami
+- mudah diubah
+- tidak over-engineering
+- tetap scalable untuk project besar
+
+Karena tujuan utama template ini adalah:
+
+- memberikan fondasi arsitektur yang rapi
+- mempercepat bootstrap module
+- tetap mudah dipahami oleh developer lain
+- menghindari generator yang terlalu pintar tapi sulit dirawat
+
+---
+
+### Tips Penggunaan
+Gunakan nama module dalam bentuk singular
+
+Benar:
+```
+php artisan make:module Product
+```
+
+Hindari (Salah):
+```
+php artisan make:module Products
+```
+
+Karena generator akan otomatis membuat bentuk plural untuk folder views dan route.
+Generate dulu, lalu sesuaikan
+Jangan berharap semua field langsung lengkap dari generator. Anggap hasil generator sebagai starter structure.
+
+---
+
+### Contoh Alur Penggunaan
+
+Misal ingin membuat module Category.
+
+Step 1
+```
+php artisan make:module Category
+```
+
+Step 2
+Tambahkan binding repository ke file CQRSServiceProvider.php:
+```
+use App\Domain\Category\Contracts\CategoryRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentCategoryRepository;
+
+$this->app->bind(CategoryRepository::class, EloquentCategoryRepository::class);
+```
+
+Step 3
+Copy route dari:
+```
+app/Presentation/Routes/categories.php
+```
+ke route utama Web.php atau Api.php.
+
+Step 4
+Buat migration:
+```
+php artisan make:migration create_categories_table
+```
+
+Step 5
+Sesuaikan field dan tampilan sesuai kebutuhan bisnis.
+
+---
+
+### Command
+
+```bash
+php artisan make:module NamaModule
+
+---
+
+## 📄 21) License
 
 MIT License
 
-```
 MIT License © 2026 Aditya Pratama Febriono This project is open-sourced software licensed under the MIT license.
-```
