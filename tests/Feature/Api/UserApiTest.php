@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use Tests\TestCase;
+use Laravel\Sanctum\Sanctum;
+use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class UserApiTest extends TestCase
@@ -11,6 +13,10 @@ class UserApiTest extends TestCase
 
     public function test_can_create_user_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $res = $this->postJson('/api/users', [
             'name' => 'Adit',
             'email' => 'adit@example.com',
@@ -27,6 +33,10 @@ class UserApiTest extends TestCase
 
     public function test_can_list_users_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         // seed default user if you want
         $this->postJson('/api/users', [
             'name' => 'Adit',
@@ -45,6 +55,10 @@ class UserApiTest extends TestCase
 
     public function test_can_show_user_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $create = $this->postJson('/api/users', [
             'name' => 'Adit',
             'email' => 'adit@example.com',
@@ -62,6 +76,10 @@ class UserApiTest extends TestCase
 
     public function test_can_update_user_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+
         $create = $this->postJson('/api/users', [
             'name' => 'Adit',
             'email' => 'adit@example.com',
@@ -89,6 +107,10 @@ class UserApiTest extends TestCase
 
     public function test_can_delete_user_via_api(): void
     {
+        // bikin user dan "login" untuk sanctum
+        $user = UserModel::factory()->create();
+        Sanctum::actingAs($user);
+        
         $create = $this->postJson('/api/users', [
             'name' => 'Adit',
             'email' => 'adit@example.com',
