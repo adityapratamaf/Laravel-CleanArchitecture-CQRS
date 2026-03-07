@@ -1,3 +1,4 @@
+````md
 # Laravel Clean Architecture + CQRS Starter Template
 
 Starter template Laravel 12 dengan:
@@ -12,7 +13,7 @@ Starter template Laravel 12 dengan:
 
 ---
 
-## Requirements
+## 📋 Requirements
 
 * PHP `^8.2`
 * Composer
@@ -20,14 +21,14 @@ Starter template Laravel 12 dengan:
 
 ---
 
-## 1) Membuat Project dari Nol
+## 🚀 1) Membuat Project dari Nol
 
 ### 1.1 Create Laravel project
 
 ```bash
 composer create-project laravel/laravel Laravel-CleanArchitecture-CQRS-Starter-Template
 cd Laravel-CleanArchitecture-CQRS-Starter-Template
-```
+````
 
 ### 1.2 Setup environment
 
@@ -51,7 +52,7 @@ DB_PASSWORD=
 
 ---
 
-## 2) Membuat Struktur Clean Architecture + CQRS
+## 🧱 2) Membuat Struktur Clean Architecture + CQRS
 
 Jalankan perintah berikut untuk membuat folder layer & module:
 
@@ -84,7 +85,7 @@ mkdir -p app/Support/Helpers
 
 ---
 
-## 3) Routing & Views dari `app/Presentation`
+## 🛣️ 3) Routing & Views dari `app/Presentation`
 
 Template ini tidak menggunakan `routes/web.php` dan `routes/api.php` default.
 Sebagai gantinya:
@@ -147,7 +148,7 @@ App\Infrastructure\Providers\PresentationServiceProvider::class,
 
 ---
 
-## 4) CQRS Bus
+## 🚌 4) CQRS Bus
 
 CQRS bus sederhana, scalable, mudah dipahami:
 
@@ -161,7 +162,7 @@ Convention:
 
 ---
 
-## 5) Helpers (Tools reusable)
+## 🧰 5) Helpers (Tools reusable)
 
 Letak:
 
@@ -172,7 +173,7 @@ Digunakan berkali-kali tanpa overengineering.
 
 ---
 
-## 6) Migrations + Seeders
+## 🗃️ 6) Migrations + Seeders
 
 ### 6.1 Migration users & products
 
@@ -211,7 +212,7 @@ php artisan db:seed
 
 ---
 
-## 7) Menjalankan Project
+## ▶️ 7) Menjalankan Project
 
 Clear cache + autoload:
 
@@ -228,49 +229,51 @@ php artisan serve
 
 ---
 
-## 8) Endpoint yang tersedia
+## 🌐 8) Endpoint yang tersedia
 
 ### 8.1 Web (Blade)
 
-* Users:
+#### 👤 Users
 
-  * `GET /users`
-  * `GET /users/create`
-  * `POST /users`
-  * `GET /users/{id}`
-  * `GET /users/{id}/edit`
-  * `PUT /users/{id}`
-  * `DELETE /users/{id}`
+* `GET /users`
+* `GET /users/create`
+* `POST /users`
+* `GET /users/{id}`
+* `GET /users/{id}/edit`
+* `PUT /users/{id}`
+* `DELETE /users/{id}`
 
-* Products:
+#### 📦 Products
 
-  * `GET /products`
-  * `GET /products/create`
-  * `POST /products`
-  * `GET /products/{id}`
-  * `GET /products/{id}/edit`
-  * `PUT /products/{id}`
-  * `DELETE /products/{id}`
+* `GET /products`
+* `GET /products/create`
+* `POST /products`
+* `GET /products/{id}`
+* `GET /products/{id}/edit`
+* `PUT /products/{id}`
+* `DELETE /products/{id}`
+
+---
 
 ### 8.2 API (JSON)
 
 Base prefix: `/api`
 
-* Users:
+#### 👤 Users
 
-  * `GET /api/users`
-  * `POST /api/users`
-  * `GET /api/users/{id}`
-  * `PUT /api/users/{id}`
-  * `DELETE /api/users/{id}`
+* `GET /api/users`
+* `POST /api/users`
+* `GET /api/users/{id}`
+* `PUT /api/users/{id}`
+* `DELETE /api/users/{id}`
 
-* Products:
+#### 📦 Products
 
-  * `GET /api/products`
-  * `POST /api/products`
-  * `GET /api/products/{id}`
-  * `PUT /api/products/{id}`
-  * `DELETE /api/products/{id}`
+* `GET /api/products`
+* `POST /api/products`
+* `GET /api/products/{id}`
+* `PUT /api/products/{id}`
+* `DELETE /api/products/{id}`
 
 Contoh body JSON create product:
 
@@ -286,7 +289,188 @@ Contoh body JSON create product:
 
 ---
 
-## 9) Cara Menambah Module Baru (Pattern cepat)
+## 🔐 9) Dokumentasi API Auth + Products (Sanctum)
+
+Base URL:
+
+```txt
+http://localhost:8000
+```
+
+Kalau kamu pakai domain lain, tinggal ganti.
+
+> **Catatan:** Dokumentasi **Users API** di atas tetap berlaku dan tidak dihapus.
+> Bagian ini adalah tambahan dokumentasi untuk **Auth** dan **Products dengan Bearer Token**.
+
+### 9.1 Login (ambil token)
+
+#### Endpoint
+
+```http
+POST /api/auth/login
+```
+
+#### cURL
+
+```bash
+curl -X POST "http://localhost:8000/api/auth/login" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "password123",
+    "device_name": "postman"
+  }'
+```
+
+#### Response contoh
+
+```json
+{
+  "token_type": "Bearer",
+  "token": "1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}
+```
+
+Simpan nilai token untuk dipakai di request berikutnya.
+
+---
+
+### 9.2 Products (pakai Bearer Token)
+
+Bagian ini berlaku jika route `products` dimasukkan ke group middleware `auth:sanctum`.
+
+#### 📄 9.2.1 List products
+
+##### Endpoint
+
+```http
+GET /api/products
+```
+
+##### cURL
+
+```bash
+curl -X GET "http://localhost:8000/api/products" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+---
+
+#### ➕ 9.2.2 Create product
+
+##### Endpoint
+
+```http
+POST /api/products
+```
+
+##### cURL
+
+```bash
+curl -X POST "http://localhost:8000/api/products" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -d '{
+    "name": "New Product",
+    "sku": "SKU-N-999",
+    "price": 150000,
+    "stock": 5,
+    "description": "test product"
+  }'
+```
+
+---
+
+#### 🔍 9.2.3 Show product
+
+##### Endpoint
+
+```http
+GET /api/products/{id}
+```
+
+##### cURL
+
+```bash
+curl -X GET "http://localhost:8000/api/products/1" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+---
+
+#### ✏️ 9.2.4 Update product
+
+##### Endpoint
+
+```http
+PUT /api/products/{id}
+```
+
+##### cURL
+
+```bash
+curl -X PUT "http://localhost:8000/api/products/1" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -d '{
+    "name": "Product A Updated",
+    "sku": "SKU-A-001",
+    "price": 175000,
+    "stock": 30,
+    "description": "updated"
+  }'
+```
+
+---
+
+#### 🗑️ 9.2.5 Delete product
+
+##### Endpoint
+
+```http
+DELETE /api/products/{id}
+```
+
+##### cURL
+
+```bash
+curl -X DELETE "http://localhost:8000/api/products/1" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+---
+
+### 9.3 Logout (revoke token yang sedang dipakai)
+
+#### Endpoint
+
+```http
+POST /api/auth/logout
+```
+
+#### cURL
+
+```bash
+curl -X POST "http://localhost:8000/api/auth/logout" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+#### Response contoh
+
+```json
+{ "message": "Logged out" }
+```
+
+---
+
+## 🧩 10) Cara Menambah Module Baru (Pattern cepat)
 
 Checklist module baru `X`:
 
@@ -318,7 +502,7 @@ Checklist module baru `X`:
 
 ---
 
-## 10) Publishing ke Packagist (Create Project)
+## 📦 11) Publishing ke Packagist (Create Project)
 
 Agar orang bisa install template ini dengan nama project custom:
 
@@ -326,7 +510,7 @@ Agar orang bisa install template ini dengan nama project custom:
 composer create-project vendor/laravel-cleanarchitecture-cqrs-starter-template MyProjectName
 ```
 
-### 10.1 composer.json minimal untuk template
+### 11.1 composer.json minimal untuk template
 
 Pastikan di root `composer.json`:
 
@@ -359,7 +543,7 @@ Contoh:
 }
 ```
 
-### 10.2 Steps publish
+### 11.2 Steps publish
 
 1. Push repository ke GitHub
 2. Daftarkan repo ke Packagist
@@ -368,8 +552,9 @@ Contoh:
 
 ---
 
-## Notes
+## 📝 Notes
 
 * CQRS di template ini **simple & scalable**: Command/Query selalu punya Handler dan DTO.
 * Tidak menggunakan package CQRS eksternal agar mudah dipahami & minim dependency.
 * Views & routes sengaja dipindah ke `app/Presentation` agar konsisten dengan Clean Architecture.
+* Dokumentasi API **Users**, **Auth Login/Logout**, dan **Products** bisa dipakai sebagai dasar testing di Postman atau cURL.
