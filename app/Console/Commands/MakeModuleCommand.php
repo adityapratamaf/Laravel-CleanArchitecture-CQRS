@@ -140,7 +140,7 @@ class MakeModuleCommand extends Command
         $this->newLine();
         $this->info("Module {$module} generated successfully.");
         $this->warn("Next steps:");
-        $this->line("1. Tambahkan binding repository di CQRSServiceProvider");
+        $this->line("1. Tambahkan binding repository di file CQRSServiceProvider.php");
         $this->line("2. Tambahkan routes dari app/Presentation/Routes/{$modulePluralSnake}.php");
         $this->line("3. Buat migration & seeder untuk tabel {$modulePluralSnake}");
         $this->line("4. Sesuaikan fields DTO/Entity/Request/View sesuai kebutuhan module");
@@ -496,7 +496,10 @@ class List{$modulePlural}QueryHandler
         \$qb = {$module}Model::query();
 
         if (\$query->search) {
-            \$qb->where('name', 'like', '%'.\$query->search.'%');
+            \$s = mb_strtolower(trim(\$query->search));
+            \$qb->where(function (\$w) use (\$s) {
+                \$w->whereRaw('LOWER(name) LIKE ?', ["%{\$s}%"]);
+            });
         }
 
         \$allowedSort = ['id', 'name', 'created_at'];
@@ -696,11 +699,16 @@ class {$module}ApiController
             sortDir: is_string(\$request->query('sort_dir')) ? \$request->query('sort_dir') : 'desc',
         ));
 
+        \$start = ((\$result->meta['current_page'] - 1) * \$result->meta['per_page']) + 1;
+
         return response()->json([
-            'data' => array_map(fn(\$dto) => [
-                'id' => \$dto->id,
-                'name' => \$dto->name,
-            ], \$result->data),
+            'data' => array_map(function(\$dto) use (&\$start) {
+                return [
+                    'no' => \$start++,
+                    'id' => \$dto->id,
+                    'name' => \$dto->name,
+                ];
+            }, \$result->data),
             'meta' => \$result->meta,
         ]);
     }
@@ -762,9 +770,12 @@ PHP;
 
 namespace App\Presentation\Http\Controllers\Web;
 
+use DomainException;
 use Illuminate\Http\Request;
 use App\Application\Shared\Bus\CommandBus;
 use App\Application\Shared\Bus\QueryBus;
+use App\Support\Helpers\PaginationLinks;
+
 use App\Application\\{$module}\DTOs\Create{$module}DTO;
 use App\Application\\{$module}\DTOs\Update{$module}DTO;
 use App\Application\\{$module}\Commands\Create{$module}\Create{$module}Command;
@@ -772,6 +783,7 @@ use App\Application\\{$module}\Commands\Update{$module}\Update{$module}Command;
 use App\Application\\{$module}\Commands\Delete{$module}\Delete{$module}Command;
 use App\Application\\{$module}\Queries\Get{$module}ById\Get{$module}ByIdQuery;
 use App\Application\\{$module}\Queries\List{$modulePlural}\List{$modulePlural}Query;
+
 use App\Presentation\Http\Requests\\{$module}\Store{$module}Request;
 use App\Presentation\Http\Requests\\{$module}\Update{$module}Request;
 
@@ -781,6 +793,8 @@ class {$module}WebController
     {
         \$page = max(1, (int) \$request->query('page', 1));
         \$perPage = min(max((int) \$request->query('per_page', 10), 1), 50);
+        \$sortBy = is_string(\$request->query('sort_by')) ? \$request->query('sort_by') : 'id';
+        \$sortDir = is_string(\$request->query('sort_dir')) ? \$request->query('sort_dir') : 'desc';
 
         \$result = \$queryBus->ask(new List{$modulePlural}Query(
             page: \$page,
@@ -790,12 +804,27 @@ class {$module}WebController
             sortDir: is_string(\$request->query('sort_dir')) ? \$request->query('sort_dir') : 'desc',
         ));
 
+        \$paginationLinks = PaginationLinks::build(
+            basePath: '/{$modulePluralSnake}',
+            query: [
+                'search' => is_string(\$request->query('search')) ? \$request->query('search') : null,
+                'per_page' => \$perPage,
+                'sort_by' => \$sortBy,
+                'sort_dir' => \$sortDir,
+            ],
+            currentPage: \$result->meta['current_page'],
+            lastPage: \$result->meta['last_page'],
+        );
+
         return view('{$modulePluralSnake}.index', [
             '{$modulePluralSnake}' => \$result->data,
             'meta' => \$result->meta,
+            'paginationLinks' => \$paginationLinks,
             'filters' => [
                 'search' => (string) \$request->query('search', ''),
                 'per_page' => \$perPage,
+                'sort_by' => \$sortBy,
+                'sort_dir' => \$sortDir,
             ],
         ]);
     }
@@ -807,46 +836,76 @@ class {$module}WebController
 
     public function store(Store{$module}Request \$request, CommandBus \$commandBus)
     {
-        \$dto = new Create{$module}DTO(
-            name: \$request->string('name')->toString(),
-        );
+        try {
+            \$dto = new Create{$module}DTO(
+                name: \$request->string('name')->toString(),
+            );
 
-        \$commandBus->dispatch(new Create{$module}Command(\$dto));
-
-        return redirect('/{$modulePluralSnake}')->with('success', '{$module} created');
+            \$commandBus->dispatch(new Create{$module}Command(\$dto));
+            return redirect('/{$modulePluralSnake}')->with('success', '{$module} created');
+        } catch (DomainException \$e) {
+            return back()->withInput()->with('error', \$e->getMessage());
+        } catch (\Throwable \$e) {
+            return back()->withInput()->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function show(int \$id, QueryBus \$queryBus)
     {
-        \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
+        try {
+            \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
 
-        return view('{$modulePluralSnake}.show', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+            return view('{$modulePluralSnake}.show', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+        } catch (DomainException \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', \$e->getMessage());
+        } catch (\Throwable \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function edit(int \$id, QueryBus \$queryBus)
     {
-        \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
+        try {
+            \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
 
-        return view('{$modulePluralSnake}.edit', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+            return view('{$modulePluralSnake}.edit', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+        } catch (DomainException \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', \$e->getMessage());
+        } catch (\Throwable \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 
     public function update(int \$id, Update{$module}Request \$request, CommandBus \$commandBus)
     {
-        \$dto = new Update{$module}DTO(
-            id: \$id,
-            name: \$request->string('name')->toString(),
-        );
+        try {
+            \$dto = new Update{$module}DTO(
+                id: \$id,
+                name: \$request->string('name')->toString(),
+            );
 
-        \$commandBus->dispatch(new Update{$module}Command(\$dto));
+            \$commandBus->dispatch(new Update{$module}Command(\$dto));
 
-        return redirect('/{$modulePluralSnake}/'.\$id)->with('success', '{$module} updated');
+            return redirect('/{$modulePluralSnake}/'.\$id)->with('success', '{$module} updated');
+        } catch (DomainException \$e) {
+            return back()->withInput()->with('error', \$e->getMessage());
+        } catch (\Throwable \$e) {
+            return back()->withInput()->with('error', 'Terjadi kesalahan pada server');
+        }
+
     }
 
     public function destroy(int \$id, CommandBus \$commandBus)
     {
-        \$commandBus->dispatch(new Delete{$module}Command(\$id));
+        try {
+            \$commandBus->dispatch(new Delete{$module}Command(\$id));
 
-        return redirect('/{$modulePluralSnake}')->with('success', '{$module} deleted');
+            return redirect('/{$modulePluralSnake}')->with('success', '{$module} deleted');
+        } catch (DomainException \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', \$e->getMessage());
+        } catch (\Throwable \$e) {
+            return redirect('/{$modulePluralSnake}')->with('error', 'Terjadi kesalahan pada server');
+        }
     }
 }
 
@@ -858,9 +917,36 @@ PHP;
         return <<<BLADE
 <h1>{$modulePlural}</h1>
 
-@if(session('success'))
-  <p style="color: green">{{ session('success') }}</p>
-@endif
+@include('partials.flash')
+
+<!-- Helper -->
+@php
+    \$baseQuery = [
+        'search' => \$filters['search'] ?? '',
+        'per_page' => \$filters['per_page'] ?? 20,
+    ];
+
+    \$currentSortBy = \$filters['sort_by'] ?? 'id';
+    \$currentSortDir = \$filters['sort_dir'] ?? 'desc';
+
+    \$sortUrl = function(string \$column) use (\$baseQuery, \$currentSortBy, \$currentSortDir) {
+        \$dir = 'asc';
+        if (\$currentSortBy === \$column) {
+            \$dir = \$currentSortDir === 'asc' ? 'desc' : 'asc';
+        }
+        \$q = array_merge(\$baseQuery, ['sort_by' => \$column, 'sort_dir' => \$dir, 'page' => 1]);
+        return '/{$modulePluralSnake}?' . http_build_query(\$q);
+    };
+
+    \$sortIcon = function(string \$column) use (\$currentSortBy, \$currentSortDir) {
+        if (\$currentSortBy !== \$column) return '';
+        return \$currentSortDir === 'asc' ? ' ▲' : ' ▼';
+    };
+@endphp
+
+@php
+  \$offset = ((\$meta['current_page'] ?? 1) - 1) * (\$meta['per_page'] ?? 20);
+@endphp
 
 <form method="GET" action="/{$modulePluralSnake}" style="margin-bottom: 12px">
   <input name="search" value="{{ \$filters['search'] }}" placeholder="Search name" />
@@ -871,14 +957,16 @@ PHP;
 <table border="1" cellpadding="8" cellspacing="0">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>Name</th>
+      <th>No</th>
+      <th><a href="{{ \$sortUrl('id') }}">ID{{ \$sortIcon('id') }}</a></th>
+      <th><a href="{{ \$sortUrl('name') }}">Name{{ \$sortIcon('name') }}</a></th>
       <th>Action</th>
     </tr>
   </thead>
   <tbody>
     @foreach(\${$modulePluralSnake} as \$item)
       <tr>
+        <td>{{ \$offset + \$loop->iteration }}</td>
         <td>{{ \$item->id }}</td>
         <td><a href="/{$modulePluralSnake}/{{ \$item->id }}">{{ \$item->name }}</a></td>
         <td>
@@ -899,6 +987,24 @@ PHP;
   Total {{ \$meta['total'] }}
 </p>
 
+@if(\$meta['last_page'] > 1)
+    <div style="margin-top: 12px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        @foreach(\$paginationLinks as \$item)
+            @if(\$item['label'] === '...')
+                <span style="padding:6px 10px;">...</span>
+            @elseif(\$item['disabled'])
+                <span style="padding:6px 10px; color:#999; border:1px solid #ddd;">{{ \$item['label'] }}</span>
+            @elseif(\$item['active'])
+                <span style="padding:6px 10px; font-weight:bold; border:1px solid #000;">{{ \$item['label'] }}</span>
+            @else
+                <a href="{{ \$item['url'] }}" style="padding:6px 10px; border:1px solid #ddd; text-decoration:none;">
+                    {{ \$item['label'] }}
+                </a>
+            @endif
+        @endforeach
+    </div>
+@endif
+
 BLADE;
     }
 
@@ -906,6 +1012,8 @@ BLADE;
     {
         return <<<BLADE
 <h1>Create {$module}</h1>
+
+@include('partials.flash')
 
 <form method="POST" action="/{$modulePluralSnake}">
   @csrf
@@ -946,6 +1054,8 @@ BLADE;
         return <<<BLADE
 <h1>Edit {$module}</h1>
 
+@include('partials.flash')
+
 <form method="POST" action="/{$modulePluralSnake}/{{ \${$moduleVar}->id }}">
   @csrf
   @method('PUT')
@@ -977,7 +1087,7 @@ use App\Presentation\Http\Controllers\Web\\{$module}WebController;
 | {$module} Routes
 |--------------------------------------------------------------------------
 | Copy route ini ke app/Presentation/Routes/api.php atau web.php
-| sesuai kebutuhan project kamu.
+| Setelah di copy dan paste di masing-masing routes (api.php atau web.php), hapus file ini agar tetap clean.
 */
 
 // API
