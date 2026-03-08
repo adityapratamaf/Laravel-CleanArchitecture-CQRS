@@ -8,7 +8,12 @@ use Illuminate\Support\Str;
 
 class MakeModuleCommand extends Command
 {
-    protected $signature = 'make:module {name : Module name, e.g. Product}';
+    protected $signature = 'make:module
+                            {name : Module name, e.g. Product}
+                            {--fields= : Example: name:string,sku:string,price:decimal,stock:int,description:text?}
+                            {--test : Generate tests}
+                            {--migration : Generate migration}';
+
     protected $description = 'Generate a Clean Architecture + CQRS module';
 
     public function handle(): int
@@ -16,9 +21,15 @@ class MakeModuleCommand extends Command
         $module = Str::studly($this->argument('name'));
         $moduleVar = Str::camel($module);
         $modulePlural = Str::pluralStudly($module);
-        $modulePluralVar = Str::camel($modulePlural);
-        $moduleSnake = Str::snake($module);
         $modulePluralSnake = Str::snake($modulePlural);
+
+        $fields = $this->parseFields((string) $this->option('fields'));
+
+        if (empty($fields)) {
+            $fields = [
+                ['name' => 'name', 'type' => 'string', 'nullable' => false],
+            ];
+        }
 
         $basePaths = [
             app_path("Domain/{$module}/Entities"),
@@ -40,40 +51,46 @@ class MakeModuleCommand extends Command
             app_path("Presentation/Views/{$modulePluralSnake}"),
         ];
 
+        if ($this->option('test')) {
+            $basePaths[] = base_path("tests/Feature/Api");
+            $basePaths[] = base_path("tests/Feature/Web");
+            $basePaths[] = base_path("tests/Unit/{$module}");
+        }
+
         foreach ($basePaths as $path) {
             File::ensureDirectoryExists($path);
         }
 
         $files = [
             app_path("Domain/{$module}/Entities/{$module}.php")
-                => $this->stubEntity($module),
+                => $this->stubEntity($module, $fields),
 
             app_path("Domain/{$module}/Contracts/{$module}Repository.php")
                 => $this->stubRepositoryContract($module),
 
             app_path("Application/{$module}/DTOs/{$module}DTO.php")
-                => $this->stubDto($module),
+                => $this->stubDto($module, $fields),
 
             app_path("Application/{$module}/DTOs/Paged{$modulePlural}DTO.php")
                 => $this->stubPagedDto($module, $modulePlural),
 
             app_path("Application/{$module}/DTOs/Create{$module}DTO.php")
-                => $this->stubCreateDto($module),
+                => $this->stubCreateDto($module, $fields),
 
             app_path("Application/{$module}/DTOs/Update{$module}DTO.php")
-                => $this->stubUpdateDto($module),
+                => $this->stubUpdateDto($module, $fields),
 
             app_path("Application/{$module}/Commands/Create{$module}/Create{$module}Command.php")
                 => $this->stubCreateCommand($module),
 
             app_path("Application/{$module}/Commands/Create{$module}/Create{$module}CommandHandler.php")
-                => $this->stubCreateCommandHandler($module),
+                => $this->stubCreateCommandHandler($module, $fields),
 
             app_path("Application/{$module}/Commands/Update{$module}/Update{$module}Command.php")
                 => $this->stubUpdateCommand($module),
 
             app_path("Application/{$module}/Commands/Update{$module}/Update{$module}CommandHandler.php")
-                => $this->stubUpdateCommandHandler($module),
+                => $this->stubUpdateCommandHandler($module, $fields),
 
             app_path("Application/{$module}/Commands/Delete{$module}/Delete{$module}Command.php")
                 => $this->stubDeleteCommand($module),
@@ -85,47 +102,63 @@ class MakeModuleCommand extends Command
                 => $this->stubGetByIdQuery($module),
 
             app_path("Application/{$module}/Queries/Get{$module}ById/Get{$module}ByIdQueryHandler.php")
-                => $this->stubGetByIdQueryHandler($module),
+                => $this->stubGetByIdQueryHandler($module, $fields),
 
             app_path("Application/{$module}/Queries/List{$modulePlural}/List{$modulePlural}Query.php")
                 => $this->stubListQuery($module, $modulePlural),
 
             app_path("Application/{$module}/Queries/List{$modulePlural}/List{$modulePlural}QueryHandler.php")
-                => $this->stubListQueryHandler($module, $modulePlural),
+                => $this->stubListQueryHandler($module, $modulePlural, $fields),
 
             app_path("Infrastructure/Persistence/Eloquent/Models/{$module}Model.php")
-                => $this->stubModel($module, $modulePluralSnake),
+                => $this->stubModel($module, $modulePluralSnake, $fields),
 
             app_path("Infrastructure/Persistence/Eloquent/Repositories/Eloquent{$module}Repository.php")
-                => $this->stubRepositoryImpl($module, $modulePluralSnake),
+                => $this->stubRepositoryImpl($module, $fields),
 
             app_path("Presentation/Http/Requests/{$module}/Store{$module}Request.php")
-                => $this->stubStoreRequest($module),
+                => $this->stubStoreRequest($module, $fields),
 
             app_path("Presentation/Http/Requests/{$module}/Update{$module}Request.php")
-                => $this->stubUpdateRequest($module),
+                => $this->stubUpdateRequest($module, $fields),
 
             app_path("Presentation/Http/Controllers/Api/{$module}ApiController.php")
-                => $this->stubApiController($module, $modulePlural, $modulePluralSnake),
+                => $this->stubApiController($module, $modulePlural, $fields),
 
             app_path("Presentation/Http/Controllers/Web/{$module}WebController.php")
-                => $this->stubWebController($module, $modulePlural, $modulePluralSnake),
+                => $this->stubWebController($module, $modulePlural, $modulePluralSnake, $fields),
 
             app_path("Presentation/Views/{$modulePluralSnake}/index.blade.php")
-                => $this->stubIndexView($module, $modulePlural, $modulePluralSnake),
+                => $this->stubIndexView($module, $modulePlural, $modulePluralSnake, $fields),
 
             app_path("Presentation/Views/{$modulePluralSnake}/create.blade.php")
-                => $this->stubCreateView($module, $modulePluralSnake),
+                => $this->stubCreateView($module, $modulePluralSnake, $fields),
 
             app_path("Presentation/Views/{$modulePluralSnake}/show.blade.php")
-                => $this->stubShowView($module, $moduleVar),
+                => $this->stubShowView($module, $moduleVar, $fields),
 
             app_path("Presentation/Views/{$modulePluralSnake}/edit.blade.php")
-                => $this->stubEditView($module, $moduleVar, $modulePluralSnake),
+                => $this->stubEditView($module, $moduleVar, $modulePluralSnake, $fields),
 
             app_path("Presentation/Routes/{$modulePluralSnake}.php")
                 => $this->stubRoutes($module, $modulePluralSnake),
         ];
+
+        if ($this->option('test')) {
+            $files[base_path("tests/Feature/Api/{$module}ApiTest.php")] =
+                $this->stubFeatureApiTest($module, $modulePluralSnake, $fields);
+
+            $files[base_path("tests/Feature/Web/{$module}WebTest.php")] =
+                $this->stubFeatureWebTest($module, $modulePlural, $modulePluralSnake, $fields);
+
+            $files[base_path("tests/Unit/{$module}/Create{$module}CommandHandlerTest.php")] =
+                $this->stubUnitCreateHandlerTest($module, $fields);
+        }
+
+        if ($this->option('migration')) {
+            $migrationPath = database_path('migrations/' . date('Y_m_d_His') . '_create_' . $modulePluralSnake . '_table.php');
+            $files[$migrationPath] = $this->stubMigration($modulePluralSnake, $fields);
+        }
 
         foreach ($files as $path => $content) {
             if (File::exists($path)) {
@@ -133,23 +166,434 @@ class MakeModuleCommand extends Command
                 continue;
             }
 
+            File::ensureDirectoryExists(dirname($path));
             File::put($path, $content);
             $this->info("Created: {$path}");
         }
 
         $this->newLine();
         $this->info("Module {$module} generated successfully.");
-        $this->warn("Next steps:");
-        $this->line("1. Tambahkan binding repository di file CQRSServiceProvider.php");
-        $this->line("2. Tambahkan routes dari app/Presentation/Routes/{$modulePluralSnake}.php");
-        $this->line("3. Buat migration & seeder untuk tabel {$modulePluralSnake}");
-        $this->line("4. Sesuaikan fields DTO/Entity/Request/View sesuai kebutuhan module");
+        $this->warn('Next steps:');
+        $this->line("1. Tambahkan binding repository di CQRSServiceProvider.php");
+        $this->line("2. Copy routes dari app/Presentation/Routes/{$modulePluralSnake}.php");
+        if ($this->option('migration')) {
+            $this->line("3. Jalankan php artisan migrate");
+        } else {
+            $this->line("3. Buat migration untuk tabel {$modulePluralSnake}");
+        }
+        if ($this->option('test')) {
+            $this->line("4. Review test auth/API sesuai kebutuhan project kamu");
+        }
+        $this->line("5. Sesuaikan rule business, unique check, dan field relation bila perlu");
 
         return self::SUCCESS;
     }
 
-    protected function stubEntity(string $module): string
+    protected function parseFields(string $raw): array
     {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $items = array_filter(array_map('trim', explode(',', $raw)));
+        $fields = [];
+
+        foreach ($items as $item) {
+            [$name, $type] = array_pad(explode(':', $item, 2), 2, 'string');
+
+            $name = trim($name);
+            $type = trim($type);
+
+            if ($name === '') {
+                continue;
+            }
+
+            $nullable = false;
+            if (str_ends_with($type, '?')) {
+                $nullable = true;
+                $type = substr($type, 0, -1);
+            }
+
+            $type = strtolower($type);
+
+            if (!in_array($type, ['string', 'text', 'int', 'integer', 'decimal', 'float', 'bool', 'boolean', 'date', 'datetime'], true)) {
+                $type = 'string';
+            }
+
+            $fields[] = [
+                'name' => Str::snake($name),
+                'type' => $type,
+                'nullable' => $nullable,
+            ];
+        }
+
+        return $fields;
+    }
+
+    protected function phpType(array $field, bool $withNullable = false): string
+    {
+        $map = [
+            'string' => 'string',
+            'text' => 'string',
+            'int' => 'int',
+            'integer' => 'int',
+            'decimal' => 'float',
+            'float' => 'float',
+            'bool' => 'bool',
+            'boolean' => 'bool',
+            'date' => 'string',
+            'datetime' => 'string',
+        ];
+
+        $type = $map[$field['type']] ?? 'string';
+
+        if ($withNullable && $field['nullable']) {
+            return '?' . $type;
+        }
+
+        return $type;
+    }
+
+    protected function isNullable(array $field): bool
+    {
+        return (bool) $field['nullable'];
+    }
+
+    protected function constructorParams(array $fields, bool $includeId = false): string
+    {
+        $lines = [];
+
+        if ($includeId) {
+            $lines[] = "        public readonly ?int \$id,";
+        }
+
+        foreach ($fields as $field) {
+            $type = $this->phpType($field, true);
+            $prefix = $includeId ? '        public ' : '        public readonly ';
+            $lines[] = "{$prefix}{$type} \${$field['name']},";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    protected function dtoConstructorParams(array $fields, bool $includeId = false): string
+    {
+        $lines = [];
+
+        if ($includeId) {
+            $lines[] = "        public readonly int \$id,";
+        }
+
+        foreach ($fields as $field) {
+            $type = $this->phpType($field, true);
+            $lines[] = "        public readonly {$type} \${$field['name']},";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    protected function entityArgsFromData(array $fields): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $lines[] = "            {$field['name']}: \$data->{$field['name']},";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function dtoArgsFromObject(array $fields, string $objectVar): string
+    {
+        $lines = ["            {$objectVar}->id,"];
+        foreach ($fields as $field) {
+            $lines[] = "            {$objectVar}->{$field['name']},";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function modelFillable(array $fields): string
+    {
+        return implode("\n", array_map(fn ($f) => "        '{$f['name']}',", $fields));
+    }
+
+    protected function modelCreateArray(array $fields, string $sourceVar): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $lines[] = "            '{$field['name']}' => {$sourceVar}->{$field['name']},";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function modelAssignLines(array $fields, string $rowVar, string $entityVar): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $lines[] = "        {$rowVar}->{$field['name']} = {$entityVar}->{$field['name']};";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function objectCtorArgsFromRow(array $fields, string $rowVar): string
+    {
+        $lines = ["            {$rowVar}->id,"];
+        foreach ($fields as $field) {
+            $cast = match ($field['type']) {
+                'int', 'integer' => '(int) ',
+                'decimal', 'float' => '(float) ',
+                'bool', 'boolean' => '(bool) ',
+                default => '',
+            };
+
+            if ($field['nullable']) {
+                $lines[] = "            {$rowVar}->{$field['name']} !== null ? {$cast}{$rowVar}->{$field['name']} : null,";
+            } else {
+                $lines[] = "            {$cast}{$rowVar}->{$field['name']},";
+            }
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function requestRules(array $fields, bool $isUpdate = false): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $rules = [];
+
+            if ($field['nullable']) {
+                $rules[] = 'nullable';
+            } else {
+                $rules[] = 'required';
+            }
+
+            $rules[] = match ($field['type']) {
+                'string', 'text', 'date', 'datetime' => 'string',
+                'int', 'integer' => 'integer',
+                'decimal', 'float' => 'numeric',
+                'bool', 'boolean' => 'boolean',
+                default => 'string',
+            };
+
+            if (in_array($field['type'], ['string'], true)) {
+                $rules[] = 'max:190';
+            }
+
+            if (in_array($field['type'], ['int', 'integer', 'decimal', 'float'], true)) {
+                $rules[] = 'min:0';
+            }
+
+            $ruleString = implode("', '", $rules);
+            $lines[] = "            '{$field['name']}' => ['{$ruleString}'],";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    protected function dtoInputFromRequest(array $fields): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $name = $field['name'];
+
+            $expr = match ($field['type']) {
+                'int', 'integer' => "(int) \$request->input('{$name}')",
+                'decimal', 'float' => "(float) \$request->input('{$name}')",
+                'bool', 'boolean' => "(bool) \$request->boolean('{$name}')",
+                default => $field['nullable']
+                    ? "\$request->filled('{$name}') ? (string) \$request->input('{$name}') : null"
+                    : "\$request->string('{$name}')->toString()",
+            };
+
+            $lines[] = "            {$name}: {$expr},";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    protected function dtoJsonArray(array $fields, string $var): string
+    {
+        $lines = ["            'id' => \${$var}->id,"];
+        foreach ($fields as $field) {
+            $lines[] = "            '{$field['name']}' => \${$var}->{$field['name']},";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function dtoJsonArrayForMap(array $fields, string $var): string
+    {
+        $lines = ["                'id' => \${$var}->id,"];
+        foreach ($fields as $field) {
+            $lines[] = "                '{$field['name']}' => \${$var}->{$field['name']},";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function fillEntityFromData(array $fields, string $entityVar = '$entity', string $dataVar = '$data'): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $lines[] = "        {$entityVar}->{$field['name']} = {$dataVar}->{$field['name']};";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function viewTableHeaders(array $fields): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $label = Str::headline($field['name']);
+            $lines[] = "      <th>{$label}</th>";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function viewTableCells(array $fields): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $name = $field['name'];
+            $lines[] = "        <td>{{ \$item->{$name} }}</td>";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function viewCreateInputs(array $fields): string
+    {
+        $chunks = [];
+        foreach ($fields as $field) {
+            $name = $field['name'];
+            $label = Str::headline($name);
+            $input = in_array($field['type'], ['text'], true)
+                ? "    <textarea name=\"{$name}\">{{ old('{$name}') }}</textarea>"
+                : "    <input name=\"{$name}\" value=\"{{ old('{$name}') }}\" />";
+
+            $chunks[] = <<<BLADE
+  <p>
+    <label>{$label}</label><br/>
+{$input}
+    @error('{$name}') <div style="color:red">{{ \$message }}</div> @enderror
+  </p>
+BLADE;
+        }
+
+        return implode("\n\n", $chunks);
+    }
+
+    protected function viewEditInputs(array $fields, string $var): string
+    {
+        $chunks = [];
+        foreach ($fields as $field) {
+            $name = $field['name'];
+            $label = Str::headline($name);
+            $input = in_array($field['type'], ['text'], true)
+                ? "    <textarea name=\"{$name}\">{{ old('{$name}', \${$var}->{$name}) }}</textarea>"
+                : "    <input name=\"{$name}\" value=\"{{ old('{$name}', \${$var}->{$name}) }}\" />";
+
+            $chunks[] = <<<BLADE
+  <p>
+    <label>{$label}</label><br/>
+{$input}
+    @error('{$name}') <div style="color:red">{{ \$message }}</div> @enderror
+  </p>
+BLADE;
+        }
+
+        return implode("\n\n", $chunks);
+    }
+
+    protected function viewShowFields(array $fields, string $var): string
+    {
+        $lines = ["<p>ID: {{ \${$var}->id }}</p>"];
+        foreach ($fields as $field) {
+            $label = Str::headline($field['name']);
+            $lines[] = "<p>{$label}: {{ \${$var}->{$field['name']} }}</p>";
+        }
+        return implode("\n", $lines);
+    }
+
+    protected function migrationColumns(array $fields): string
+    {
+        $lines = [];
+        foreach ($fields as $field) {
+            $nullable = $field['nullable'] ? '->nullable()' : '';
+
+            $line = match ($field['type']) {
+                'string' => "\$table->string('{$field['name']}'){$nullable};",
+                'text' => "\$table->text('{$field['name']}'){$nullable};",
+                'int', 'integer' => "\$table->integer('{$field['name']}'){$nullable};",
+                'decimal' => "\$table->decimal('{$field['name']}', 12, 2){$nullable};",
+                'float' => "\$table->float('{$field['name']}'){$nullable};",
+                'bool', 'boolean' => "\$table->boolean('{$field['name']}')->default(false);",
+                'date' => "\$table->date('{$field['name']}'){$nullable};",
+                'datetime' => "\$table->dateTime('{$field['name']}'){$nullable};",
+                default => "\$table->string('{$field['name']}'){$nullable};",
+            };
+
+            $lines[] = "            {$line}";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    protected function testPayload(array $fields): string
+    {
+        $pairs = [];
+        foreach ($fields as $field) {
+            $pairs[] = "            '{$field['name']}' => " . $this->sampleValuePhp($field) . ",";
+        }
+        return implode("\n", $pairs);
+    }
+
+    protected function updatedTestPayload(array $fields): string
+    {
+        $pairs = [];
+        foreach ($fields as $field) {
+            $pairs[] = "            '{$field['name']}' => " . $this->updatedSampleValuePhp($field) . ",";
+        }
+        return implode("\n", $pairs);
+    }
+
+    protected function sampleValuePhp(array $field): string
+    {
+        return match ($field['type']) {
+            'string' => "'" . Str::headline($field['name']) . " Sample'",
+            'text' => "'Sample description'",
+            'int', 'integer' => '10',
+            'decimal', 'float' => '150000.50',
+            'bool', 'boolean' => 'true',
+            'date' => "'2026-01-01'",
+            'datetime' => "'2026-01-01 10:00:00'",
+            default => "'sample'",
+        };
+    }
+
+    protected function updatedSampleValuePhp(array $field): string
+    {
+        return match ($field['type']) {
+            'string' => "'Updated " . Str::headline($field['name']) . "'",
+            'text' => "'Updated description'",
+            'int', 'integer' => '99',
+            'decimal', 'float' => '250000.75',
+            'bool', 'boolean' => 'false',
+            'date' => "'2026-02-02'",
+            'datetime' => "'2026-02-02 11:30:00'",
+            default => "'updated'",
+        };
+    }
+
+    protected function dbAssertArray(array $fields): string
+    {
+        $pairs = [];
+        foreach ($fields as $field) {
+            $pairs[] = "            '{$field['name']}' => " . $this->sampleValuePhp($field) . ",";
+        }
+        return implode("\n", $pairs);
+    }
+
+    protected function stubEntity(string $module, array $fields): string
+    {
+        $params = $this->constructorParams($fields, true);
+
         return <<<PHP
 <?php
 
@@ -158,8 +602,7 @@ namespace App\Domain\\{$module}\Entities;
 class {$module}
 {
     public function __construct(
-        public readonly ?int \$id,
-        public string \$name,
+{$params}
     ) {}
 }
 
@@ -168,6 +611,8 @@ PHP;
 
     protected function stubRepositoryContract(string $module): string
     {
+        $var = Str::camel($module);
+
         return <<<PHP
 <?php
 
@@ -177,8 +622,8 @@ use App\Domain\\{$module}\Entities\\{$module};
 
 interface {$module}Repository
 {
-    public function create({$module} \${$this->camel($module)}): {$module};
-    public function update({$module} \${$this->camel($module)}): {$module};
+    public function create({$module} \${$var}): {$module};
+    public function update({$module} \${$var}): {$module};
     public function delete(int \$id): void;
     public function findById(int \$id): ?{$module};
 }
@@ -186,8 +631,10 @@ interface {$module}Repository
 PHP;
     }
 
-    protected function stubDto(string $module): string
+    protected function stubDto(string $module, array $fields): string
     {
+        $params = $this->dtoConstructorParams($fields, true);
+
         return <<<PHP
 <?php
 
@@ -196,8 +643,7 @@ namespace App\Application\\{$module}\DTOs;
 class {$module}DTO
 {
     public function __construct(
-        public readonly int \$id,
-        public readonly string \$name,
+{$params}
     ) {}
 }
 
@@ -225,8 +671,10 @@ class Paged{$modulePlural}DTO
 PHP;
     }
 
-    protected function stubCreateDto(string $module): string
+    protected function stubCreateDto(string $module, array $fields): string
     {
+        $params = $this->dtoConstructorParams($fields, false);
+
         return <<<PHP
 <?php
 
@@ -235,15 +683,17 @@ namespace App\Application\\{$module}\DTOs;
 class Create{$module}DTO
 {
     public function __construct(
-        public readonly string \$name,
+{$params}
     ) {}
 }
 
 PHP;
     }
 
-    protected function stubUpdateDto(string $module): string
+    protected function stubUpdateDto(string $module, array $fields): string
     {
+        $params = $this->dtoConstructorParams($fields, true);
+
         return <<<PHP
 <?php
 
@@ -252,8 +702,7 @@ namespace App\Application\\{$module}\DTOs;
 class Update{$module}DTO
 {
     public function __construct(
-        public readonly int \$id,
-        public readonly string \$name,
+{$params}
     ) {}
 }
 
@@ -277,9 +726,11 @@ class Create{$module}Command
 PHP;
     }
 
-    protected function stubCreateCommandHandler(string $module): string
+    protected function stubCreateCommandHandler(string $module, array $fields): string
     {
-        $var = $this->camel($module);
+        $var = Str::camel($module);
+        $entityArgs = $this->entityArgsFromData($fields);
+        $dtoArgs = $this->dtoArgsFromObject($fields, '$created');
 
         return <<<PHP
 <?php
@@ -300,14 +751,13 @@ class Create{$module}CommandHandler
 
         \${$var} = new {$module}(
             id: null,
-            name: \$data->name,
+{$entityArgs}
         );
 
         \$created = \$this->repository->create(\${$var});
 
         return new {$module}DTO(
-            \$created->id,
-            \$created->name,
+{$dtoArgs}
         );
     }
 }
@@ -332,8 +782,12 @@ class Update{$module}Command
 PHP;
     }
 
-    protected function stubUpdateCommandHandler(string $module): string
+    protected function stubUpdateCommandHandler(string $module, array $fields): string
     {
+        $var = Str::camel($module);
+        $assignments = $this->fillEntityFromData($fields, "\${$var}", '$data');
+        $dtoArgs = $this->dtoArgsFromObject($fields, '$updated');
+
         return <<<PHP
 <?php
 
@@ -350,19 +804,18 @@ class Update{$module}CommandHandler
     {
         \$data = \$command->data;
 
-        \${$this->camel($module)} = \$this->repository->findById(\$data->id);
+        \${$var} = \$this->repository->findById(\$data->id);
 
-        if (!\${$this->camel($module)}) {
+        if (!\${$var}) {
             throw new \DomainException('{$module} not found');
         }
 
-        \${$this->camel($module)}->name = \$data->name;
+{$assignments}
 
-        \$updated = \$this->repository->update(\${$this->camel($module)});
+        \$updated = \$this->repository->update(\${$var});
 
         return new {$module}DTO(
-            \$updated->id,
-            \$updated->name,
+{$dtoArgs}
         );
     }
 }
@@ -422,8 +875,11 @@ class Get{$module}ByIdQuery
 PHP;
     }
 
-    protected function stubGetByIdQueryHandler(string $module): string
+    protected function stubGetByIdQueryHandler(string $module, array $fields): string
     {
+        $var = Str::camel($module);
+        $dtoArgs = $this->dtoArgsFromObject($fields, "\${$var}");
+
         return <<<PHP
 <?php
 
@@ -438,15 +894,14 @@ class Get{$module}ByIdQueryHandler
 
     public function handle(Get{$module}ByIdQuery \$query): {$module}DTO
     {
-        \${$this->camel($module)} = \$this->repository->findById(\$query->id);
+        \${$var} = \$this->repository->findById(\$query->id);
 
-        if (!\${$this->camel($module)}) {
+        if (!\${$var}) {
             throw new \DomainException('{$module} not found');
         }
 
         return new {$module}DTO(
-            \${$this->camel($module)}->id,
-            \${$this->camel($module)}->name,
+{$dtoArgs}
         );
     }
 }
@@ -475,9 +930,40 @@ class List{$modulePlural}Query
 PHP;
     }
 
-    protected function stubListQueryHandler(string $module, string $modulePlural): string
+    protected function stubListQueryHandler(string $module, string $modulePlural, array $fields): string
     {
-        $moduleSnakePlural = Str::snake(Str::pluralStudly($module));
+        $searchable = array_filter($fields, fn ($f) => in_array($f['type'], ['string', 'text'], true));
+        if (empty($searchable)) {
+            $searchWhere = "            \$qb->whereRaw('1 = 0');";
+        } else {
+            $searchLines = [];
+            foreach ($searchable as $index => $field) {
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $searchLines[] = "                \$w->{$method}('LOWER({$field['name']}) LIKE ?', [\"%{\$s}%\"]);";
+            }
+            $searchWhere = "            \$qb->where(function (\$w) use (\$s) {\n" . implode("\n", $searchLines) . "\n            });";
+        }
+
+        $allowedSort = array_merge(['id', 'created_at'], array_map(fn ($f) => "'{$f['name']}'", $fields));
+        $allowedSortString = implode(', ', $allowedSort);
+
+        $mapLines = [];
+        $mapLines[] = "                \$row->id,";
+        foreach ($fields as $field) {
+            $cast = match ($field['type']) {
+                'int', 'integer' => '(int) ',
+                'decimal', 'float' => '(float) ',
+                'bool', 'boolean' => '(bool) ',
+                default => '',
+            };
+
+            if ($field['nullable']) {
+                $mapLines[] = "                \$row->{$field['name']} !== null ? {$cast}\$row->{$field['name']} : null,";
+            } else {
+                $mapLines[] = "                {$cast}\$row->{$field['name']},";
+            }
+        }
+        $mapBlock = implode("\n", $mapLines);
 
         return <<<PHP
 <?php
@@ -497,12 +983,10 @@ class List{$modulePlural}QueryHandler
 
         if (\$query->search) {
             \$s = mb_strtolower(trim(\$query->search));
-            \$qb->where(function (\$w) use (\$s) {
-                \$w->whereRaw('LOWER(name) LIKE ?', ["%{\$s}%"]);
-            });
+{$searchWhere}
         }
 
-        \$allowedSort = ['id', 'name', 'created_at'];
+        \$allowedSort = [{$allowedSortString}];
         \$sortBy = in_array(\$query->sortBy, \$allowedSort, true) ? \$query->sortBy : 'id';
         \$sortDir = strtolower(\$query->sortDir) === 'asc' ? 'asc' : 'desc';
 
@@ -514,8 +998,7 @@ class List{$modulePlural}QueryHandler
         \$data = [];
         foreach (\$paginator->items() as \$row) {
             \$data[] = new {$module}DTO(
-                \$row->id,
-                \$row->name,
+{$mapBlock}
             );
         }
 
@@ -529,8 +1012,10 @@ class List{$modulePlural}QueryHandler
 PHP;
     }
 
-    protected function stubModel(string $module, string $table): string
+    protected function stubModel(string $module, string $table, array $fields): string
     {
+        $fillable = $this->modelFillable($fields);
+
         return <<<PHP
 <?php
 
@@ -543,15 +1028,19 @@ class {$module}Model extends Model
     protected \$table = '{$table}';
 
     protected \$fillable = [
-        'name',
+{$fillable}
     ];
 }
 
 PHP;
     }
 
-    protected function stubRepositoryImpl(string $module, string $table): string
+    protected function stubRepositoryImpl(string $module, array $fields): string
     {
+        $createArray = $this->modelCreateArray($fields, '$entity');
+        $assignLines = $this->modelAssignLines($fields, '$row', '$entity');
+        $ctorArgs = $this->objectCtorArgsFromRow($fields, '$row');
+
         return <<<PHP
 <?php
 
@@ -566,24 +1055,22 @@ class Eloquent{$module}Repository implements {$module}Repository
     public function create({$module} \$entity): {$module}
     {
         \$row = {$module}Model::create([
-            'name' => \$entity->name,
+{$createArray}
         ]);
 
         return new {$module}(
-            \$row->id,
-            \$row->name,
+{$ctorArgs}
         );
     }
 
     public function update({$module} \$entity): {$module}
     {
         \$row = {$module}Model::findOrFail(\$entity->id);
-        \$row->name = \$entity->name;
+{$assignLines}
         \$row->save();
 
         return new {$module}(
-            \$row->id,
-            \$row->name,
+{$ctorArgs}
         );
     }
 
@@ -601,8 +1088,7 @@ class Eloquent{$module}Repository implements {$module}Repository
         }
 
         return new {$module}(
-            \$row->id,
-            \$row->name,
+{$ctorArgs}
         );
     }
 }
@@ -610,8 +1096,10 @@ class Eloquent{$module}Repository implements {$module}Repository
 PHP;
     }
 
-    protected function stubStoreRequest(string $module): string
+    protected function stubStoreRequest(string $module, array $fields): string
     {
+        $rules = $this->requestRules($fields, false);
+
         return <<<PHP
 <?php
 
@@ -629,7 +1117,7 @@ class Store{$module}Request extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:190'],
+{$rules}
         ];
     }
 }
@@ -637,8 +1125,10 @@ class Store{$module}Request extends FormRequest
 PHP;
     }
 
-    protected function stubUpdateRequest(string $module): string
+    protected function stubUpdateRequest(string $module, array $fields): string
     {
+        $rules = $this->requestRules($fields, true);
+
         return <<<PHP
 <?php
 
@@ -656,7 +1146,7 @@ class Update{$module}Request extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:190'],
+{$rules}
         ];
     }
 }
@@ -664,8 +1154,13 @@ class Update{$module}Request extends FormRequest
 PHP;
     }
 
-    protected function stubApiController(string $module, string $modulePlural, string $modulePluralSnake): string
+    protected function stubApiController(string $module, string $modulePlural, array $fields): string
     {
+        $moduleVar = Str::camel($module);
+        $dtoInput = $this->dtoInputFromRequest($fields);
+        $jsonSingle = $this->dtoJsonArray($fields, $moduleVar);
+        $jsonMap = $this->dtoJsonArrayForMap($fields, 'dto');
+
         return <<<PHP
 <?php
 
@@ -699,16 +1194,10 @@ class {$module}ApiController
             sortDir: is_string(\$request->query('sort_dir')) ? \$request->query('sort_dir') : 'desc',
         ));
 
-        \$start = ((\$result->meta['current_page'] - 1) * \$result->meta['per_page']) + 1;
-
         return response()->json([
-            'data' => array_map(function(\$dto) use (&\$start) {
-                return [
-                    'no' => \$start++,
-                    'id' => \$dto->id,
-                    'name' => \$dto->name,
-                ];
-            }, \$result->data),
+            'data' => array_map(fn(\$dto) => [
+{$jsonMap}
+            ], \$result->data),
             'meta' => \$result->meta,
         ]);
     }
@@ -716,24 +1205,22 @@ class {$module}ApiController
     public function store(Store{$module}Request \$request, CommandBus \$commandBus)
     {
         \$dto = new Create{$module}DTO(
-            name: \$request->string('name')->toString(),
+{$dtoInput}
         );
 
-        \${$this->camel($module)} = \$commandBus->dispatch(new Create{$module}Command(\$dto));
+        \${$moduleVar} = \$commandBus->dispatch(new Create{$module}Command(\$dto));
 
         return response()->json([
-            'id' => \${$this->camel($module)}->id,
-            'name' => \${$this->camel($module)}->name,
+{$jsonSingle}
         ], 201);
     }
 
     public function show(int \$id, QueryBus \$queryBus)
     {
-        \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
+        \${$moduleVar} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
 
         return response()->json([
-            'id' => \${$this->camel($module)}->id,
-            'name' => \${$this->camel($module)}->name,
+{$jsonSingle}
         ]);
     }
 
@@ -741,14 +1228,13 @@ class {$module}ApiController
     {
         \$dto = new Update{$module}DTO(
             id: \$id,
-            name: \$request->string('name')->toString(),
+{$dtoInput}
         );
 
-        \${$this->camel($module)} = \$commandBus->dispatch(new Update{$module}Command(\$dto));
+        \${$moduleVar} = \$commandBus->dispatch(new Update{$module}Command(\$dto));
 
         return response()->json([
-            'id' => \${$this->camel($module)}->id,
-            'name' => \${$this->camel($module)}->name,
+{$jsonSingle}
         ]);
     }
 
@@ -763,8 +1249,11 @@ class {$module}ApiController
 PHP;
     }
 
-    protected function stubWebController(string $module, string $modulePlural, string $modulePluralSnake): string
+    protected function stubWebController(string $module, string $modulePlural, string $modulePluralSnake, array $fields): string
     {
+        $moduleVar = Str::camel($module);
+        $dtoInput = $this->dtoInputFromRequest($fields);
+
         return <<<PHP
 <?php
 
@@ -775,7 +1264,6 @@ use Illuminate\Http\Request;
 use App\Application\Shared\Bus\CommandBus;
 use App\Application\Shared\Bus\QueryBus;
 use App\Support\Helpers\PaginationLinks;
-
 use App\Application\\{$module}\DTOs\Create{$module}DTO;
 use App\Application\\{$module}\DTOs\Update{$module}DTO;
 use App\Application\\{$module}\Commands\Create{$module}\Create{$module}Command;
@@ -783,7 +1271,6 @@ use App\Application\\{$module}\Commands\Update{$module}\Update{$module}Command;
 use App\Application\\{$module}\Commands\Delete{$module}\Delete{$module}Command;
 use App\Application\\{$module}\Queries\Get{$module}ById\Get{$module}ByIdQuery;
 use App\Application\\{$module}\Queries\List{$modulePlural}\List{$modulePlural}Query;
-
 use App\Presentation\Http\Requests\\{$module}\Store{$module}Request;
 use App\Presentation\Http\Requests\\{$module}\Update{$module}Request;
 
@@ -800,8 +1287,8 @@ class {$module}WebController
             page: \$page,
             perPage: \$perPage,
             search: is_string(\$request->query('search')) ? \$request->query('search') : null,
-            sortBy: is_string(\$request->query('sort_by')) ? \$request->query('sort_by') : 'id',
-            sortDir: is_string(\$request->query('sort_dir')) ? \$request->query('sort_dir') : 'desc',
+            sortBy: \$sortBy,
+            sortDir: \$sortDir,
         ));
 
         \$paginationLinks = PaginationLinks::build(
@@ -838,10 +1325,11 @@ class {$module}WebController
     {
         try {
             \$dto = new Create{$module}DTO(
-                name: \$request->string('name')->toString(),
+{$dtoInput}
             );
 
             \$commandBus->dispatch(new Create{$module}Command(\$dto));
+
             return redirect('/{$modulePluralSnake}')->with('success', '{$module} created');
         } catch (DomainException \$e) {
             return back()->withInput()->with('error', \$e->getMessage());
@@ -853,9 +1341,9 @@ class {$module}WebController
     public function show(int \$id, QueryBus \$queryBus)
     {
         try {
-            \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
+            \${$moduleVar} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
 
-            return view('{$modulePluralSnake}.show', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+            return view('{$modulePluralSnake}.show', ['{$moduleVar}' => \${$moduleVar}]);
         } catch (DomainException \$e) {
             return redirect('/{$modulePluralSnake}')->with('error', \$e->getMessage());
         } catch (\Throwable \$e) {
@@ -866,9 +1354,9 @@ class {$module}WebController
     public function edit(int \$id, QueryBus \$queryBus)
     {
         try {
-            \${$this->camel($module)} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
+            \${$moduleVar} = \$queryBus->ask(new Get{$module}ByIdQuery(\$id));
 
-            return view('{$modulePluralSnake}.edit', ['{$this->camel($module)}' => \${$this->camel($module)}]);
+            return view('{$modulePluralSnake}.edit', ['{$moduleVar}' => \${$moduleVar}]);
         } catch (DomainException \$e) {
             return redirect('/{$modulePluralSnake}')->with('error', \$e->getMessage());
         } catch (\Throwable \$e) {
@@ -881,7 +1369,7 @@ class {$module}WebController
         try {
             \$dto = new Update{$module}DTO(
                 id: \$id,
-                name: \$request->string('name')->toString(),
+{$dtoInput}
             );
 
             \$commandBus->dispatch(new Update{$module}Command(\$dto));
@@ -892,7 +1380,6 @@ class {$module}WebController
         } catch (\Throwable \$e) {
             return back()->withInput()->with('error', 'Terjadi kesalahan pada server');
         }
-
     }
 
     public function destroy(int \$id, CommandBus \$commandBus)
@@ -912,14 +1399,16 @@ class {$module}WebController
 PHP;
     }
 
-    protected function stubIndexView(string $module, string $modulePlural, string $modulePluralSnake): string
+    protected function stubIndexView(string $module, string $modulePlural, string $modulePluralSnake, array $fields): string
     {
+        $headers = $this->viewTableHeaders($fields);
+        $cells = $this->viewTableCells($fields);
+
         return <<<BLADE
 <h1>{$modulePlural}</h1>
 
 @include('partials.flash')
 
-<!-- Helper -->
 @php
     \$baseQuery = [
         'search' => \$filters['search'] ?? '',
@@ -949,7 +1438,7 @@ PHP;
 @endphp
 
 <form method="GET" action="/{$modulePluralSnake}" style="margin-bottom: 12px">
-  <input name="search" value="{{ \$filters['search'] }}" placeholder="Search name" />
+  <input name="search" value="{{ \$filters['search'] }}" placeholder="Search" />
   <button type="submit">Search</button>
   <a href="/{$modulePluralSnake}/create">Create</a>
 </form>
@@ -959,7 +1448,7 @@ PHP;
     <tr>
       <th>No</th>
       <th><a href="{{ \$sortUrl('id') }}">ID{{ \$sortIcon('id') }}</a></th>
-      <th><a href="{{ \$sortUrl('name') }}">Name{{ \$sortIcon('name') }}</a></th>
+{$headers}
       <th>Action</th>
     </tr>
   </thead>
@@ -968,8 +1457,9 @@ PHP;
       <tr>
         <td>{{ \$offset + \$loop->iteration }}</td>
         <td>{{ \$item->id }}</td>
-        <td><a href="/{$modulePluralSnake}/{{ \$item->id }}">{{ \$item->name }}</a></td>
+{$cells}
         <td>
+          <a href="/{$modulePluralSnake}/{{ \$item->id }}">Show</a>
           <a href="/{$modulePluralSnake}/{{ \$item->id }}/edit">Edit</a>
           <form method="POST" action="/{$modulePluralSnake}/{{ \$item->id }}" style="display:inline">
             @csrf
@@ -982,12 +1472,7 @@ PHP;
   </tbody>
 </table>
 
-<p style="margin-top: 12px">
-  Page {{ \$meta['current_page'] }} of {{ \$meta['last_page'] }} |
-  Total {{ \$meta['total'] }}
-</p>
-
-@if(\$meta['last_page'] > 1)
+@if((\$meta['last_page'] ?? 1) > 1)
     <div style="margin-top: 12px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         @foreach(\$paginationLinks as \$item)
             @if(\$item['label'] === '...')
@@ -1008,8 +1493,10 @@ PHP;
 BLADE;
     }
 
-    protected function stubCreateView(string $module, string $modulePluralSnake): string
+    protected function stubCreateView(string $module, string $modulePluralSnake, array $fields): string
     {
+        $inputs = $this->viewCreateInputs($fields);
+
         return <<<BLADE
 <h1>Create {$module}</h1>
 
@@ -1018,11 +1505,7 @@ BLADE;
 <form method="POST" action="/{$modulePluralSnake}">
   @csrf
 
-  <p>
-    <label>Name</label><br/>
-    <input name="name" value="{{ old('name') }}" />
-    @error('name') <div style="color:red">{{ \$message }}</div> @enderror
-  </p>
+{$inputs}
 
   <button type="submit">Save</button>
   <a href="/{$modulePluralSnake}">Back</a>
@@ -1031,15 +1514,15 @@ BLADE;
 BLADE;
     }
 
-    protected function stubShowView(string $module, string $moduleVar): string
+    protected function stubShowView(string $module, string $moduleVar, array $fields): string
     {
         $pluralSnake = Str::snake(Str::pluralStudly($module));
+        $showFields = $this->viewShowFields($fields, $moduleVar);
 
         return <<<BLADE
 <h1>{$module} Detail</h1>
 
-<p>ID: {{ \${$moduleVar}->id }}</p>
-<p>Name: {{ \${$moduleVar}->name }}</p>
+{$showFields}
 
 <p>
   <a href="/{$pluralSnake}/{{ \${$moduleVar}->id }}/edit">Edit</a> |
@@ -1049,8 +1532,10 @@ BLADE;
 BLADE;
     }
 
-    protected function stubEditView(string $module, string $moduleVar, string $modulePluralSnake): string
+    protected function stubEditView(string $module, string $moduleVar, string $modulePluralSnake, array $fields): string
     {
+        $inputs = $this->viewEditInputs($fields, $moduleVar);
+
         return <<<BLADE
 <h1>Edit {$module}</h1>
 
@@ -1060,11 +1545,7 @@ BLADE;
   @csrf
   @method('PUT')
 
-  <p>
-    <label>Name</label><br/>
-    <input name="name" value="{{ old('name', \${$moduleVar}->name) }}" />
-    @error('name') <div style="color:red">{{ \$message }}</div> @enderror
-  </p>
+{$inputs}
 
   <button type="submit">Update</button>
   <a href="/{$modulePluralSnake}/{{ \${$moduleVar}->id }}">Cancel</a>
@@ -1081,14 +1562,6 @@ BLADE;
 use Illuminate\Support\Facades\Route;
 use App\Presentation\Http\Controllers\Api\\{$module}ApiController;
 use App\Presentation\Http\Controllers\Web\\{$module}WebController;
-
-/*
-|--------------------------------------------------------------------------
-| {$module} Routes
-|--------------------------------------------------------------------------
-| Copy route ini ke app/Presentation/Routes/api.php atau web.php
-| Setelah di copy dan paste di masing-masing routes (api.php atau web.php), hapus file ini agar tetap clean.
-*/
 
 // API
 Route::get('/{$modulePluralSnake}', [{$module}ApiController::class, 'index']);
@@ -1109,8 +1582,209 @@ Route::delete('/{$modulePluralSnake}/{id}', [{$module}WebController::class, 'des
 PHP;
     }
 
-    protected function camel(string $value): string
+    protected function stubMigration(string $table, array $fields): string
     {
-        return Str::camel($value);
+        $columns = $this->migrationColumns($fields);
+
+        return <<<PHP
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('{$table}', function (Blueprint \$table) {
+            \$table->id();
+{$columns}
+            \$table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('{$table}');
+    }
+};
+
+PHP;
+    }
+
+    protected function stubFeatureApiTest(string $module, string $table, array $fields): string
+    {
+        $payload = $this->testPayload($fields);
+        $updatedPayload = $this->updatedTestPayload($fields);
+
+        $jsonKeys = ["'id'"];
+        foreach ($fields as $field) {
+            $jsonKeys[] = "'{$field['name']}'";
+        }
+        $jsonStructure = implode(',', $jsonKeys);
+
+        return <<<PHP
+<?php
+
+namespace Tests\Feature\Api;
+
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class {$module}ApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_can_create_{$table}_via_api(): void
+    {
+        \$res = \$this->postJson('/api/{$table}', [
+{$payload}
+        ]);
+
+        \$res->assertStatus(201)
+            ->assertJsonStructure([{$jsonStructure}]);
+    }
+
+    public function test_can_list_{$table}_via_api(): void
+    {
+        \$this->postJson('/api/{$table}', [
+{$payload}
+        ]);
+
+        \$res = \$this->getJson('/api/{$table}');
+
+        \$res->assertStatus(200)
+            ->assertJsonStructure([
+                'data',
+                'meta' => ['current_page','per_page','total','last_page'],
+            ]);
+    }
+
+    public function test_can_update_{$table}_via_api(): void
+    {
+        \$create = \$this->postJson('/api/{$table}', [
+{$payload}
+        ])->json();
+
+        \$res = \$this->putJson('/api/{$table}/'.\$create['id'], [
+{$updatedPayload}
+        ]);
+
+        \$res->assertStatus(200);
+    }
+}
+
+PHP;
+    }
+
+    protected function stubFeatureWebTest(string $module, string $modulePlural, string $table, array $fields): string
+    {
+        $payload = $this->testPayload($fields);
+        $firstStringField = collect($fields)->first(fn ($f) => in_array($f['type'], ['string', 'text'], true));
+        $seeValue = $firstStringField ? trim($this->sampleValuePhp($firstStringField), "'") : $modulePlural;
+
+        return <<<PHP
+<?php
+
+namespace Tests\Feature\Web;
+
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Infrastructure\Persistence\Eloquent\Models\\{$module}Model;
+
+class {$module}WebTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_{$table}_page_loads(): void
+    {
+        {$module}Model::create([
+{$payload}
+        ]);
+
+        \$res = \$this->get('/{$table}');
+
+        \$res->assertStatus(200);
+        \$res->assertSee('{$modulePlural}');
+        \$res->assertSee('{$seeValue}');
+    }
+
+    public function test_create_{$module}_form_loads(): void
+    {
+        \$res = \$this->get('/{$table}/create');
+        \$res->assertStatus(200)->assertSee('Create {$module}');
+    }
+}
+
+PHP;
+    }
+
+    protected function stubUnitCreateHandlerTest(string $module, array $fields): string
+    {
+        $ctorPayload = [];
+        $resultCtor = ["                id: 1,"];
+        $assertions = ["        \$this->assertSame(1, \$result->id);"];
+
+        foreach ($fields as $field) {
+            $value = $this->sampleValuePhp($field);
+            $ctorPayload[] = $value;
+            $resultCtor[] = "                {$field['name']}: {$value},";
+            if ($field['type'] === 'string') {
+                $assertions[] = "        \$this->assertSame({$value}, \$result->{$field['name']});";
+                break;
+            }
+        }
+
+        $dtoCtor = implode(', ', $ctorPayload);
+        $resultCtorBlock = implode("\n", $resultCtor);
+        $assertionBlock = implode("\n", $assertions);
+
+        return <<<PHP
+<?php
+
+namespace Tests\Unit\\{$module};
+
+use Tests\TestCase;
+use Mockery;
+use App\Domain\\{$module}\Contracts\\{$module}Repository;
+use App\Application\\{$module}\DTOs\Create{$module}DTO;
+use App\Application\\{$module}\Commands\Create{$module}\Create{$module}Command;
+use App\Application\\{$module}\Commands\Create{$module}\Create{$module}CommandHandler;
+use App\Domain\\{$module}\Entities\\{$module};
+
+class Create{$module}CommandHandlerTest extends TestCase
+{
+    public function test_create_{$this->snake($module)}_handler_returns_dto(): void
+    {
+        \$repo = Mockery::mock({$module}Repository::class);
+
+        \$repo->shouldReceive('create')
+            ->once()
+            ->andReturn(new {$module}(
+{$resultCtorBlock}
+            ));
+
+        \$handler = new Create{$module}CommandHandler(\$repo);
+
+        \$dto = new Create{$module}DTO({$dtoCtor});
+        \$result = \$handler->handle(new Create{$module}Command(\$dto));
+
+{$assertionBlock}
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
+}
+
+PHP;
+    }
+
+    protected function snake(string $value): string
+    {
+        return Str::snake($value);
     }
 }

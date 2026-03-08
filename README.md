@@ -7,8 +7,9 @@ Template ini dirancang agar bisa digunakan untuk:
 
 * REST API
 * Web UI (Blade)
-* Proyek kecil sampai medium
+* Proyek menengah sampai terbesar
 * Starter untuk microservice atau modular monolith
+* Senior laravel architecture template
 
 ---
 
@@ -28,7 +29,7 @@ Template ini dirancang agar bisa digunakan untuk:
 * ✅ Routes berada di `app/Presentation/Routes`
 * ✅ Views berada di `app/Presentation/Views`
 * ✅ Contoh module: **User** dan **Product** + migration + seeder
-* ✅ Ready for create new module with example: php artisan make:module Product
+* ✅ Create new module with artisan
 * ✅ Ready for Packagist template usage
 
 ---
@@ -867,8 +868,6 @@ php artisan test --filter=ProductTest
 
 Pastikan file `.env.testing` sudah disiapkan.
 
-Contoh:
-
 ```env
 APP_ENV=testing
 APP_KEY=base64:your-app-key
@@ -877,9 +876,35 @@ APP_DEBUG=true
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=db_laravel_ca_cqrs_test
+DB_DATABASE=${DB_SECRET_DATABASE}
 DB_USERNAME=${DB_SECRET_USERNAME}
 DB_PASSWORD=${DB_SECRET_PASSWORD}
+```
+
+Generate key
+```bash
+php artisan key:generate --env=testing
+```
+
+Set secret key Database, Username & Password di terminal
+```bash
+export DB_SECRET_DATABASE=YOUR_NAME_DATABASE_TESTING
+export DB_SECRET_USERNAME=YOUR_USERNAME_DATABASE_TESTING
+export DB_SECRET_PASSWORD=YOUR_PASSWORD_DATABASE_TESTING
+```
+
+Contoh:
+```bash
+export DB_SECRET_DATABASE=db_project
+export DB_SECRET_USERNAME=postgres
+export DB_SECRET_PASSWORD=M3lisaMenariDiMenar@
+```
+
+Check key yang di buat
+```bash
+echo $DB_SECRET_DATABASE
+echo $DB_SECRET_USERNAME
+echo $DB_SECRET_PASSWORD
 ```
 
 Lalu jalankan:
@@ -1059,9 +1084,14 @@ Contoh:
 
 Command ini dibuat untuk mempercepat pembuatan module baru tanpa harus membuat folder dan file satu per satu secara manual.
 
+* `--fields`
+* `--test`
+* `--migration`
+* atau **tanpa opsi sama sekali**
+
 ---
 
-### Tujuan
+# 🎯 Tujuan
 
 Generator ini membantu membuat struktur dasar module agar konsisten di seluruh project.
 
@@ -1074,7 +1104,7 @@ Cocok untuk module seperti:
 - Supplier
 - Order
 
-Generator ini sengaja dibuat tetap sederhana, supaya:
+Generator ini sengaja dibuat **tetap sederhana**, supaya:
 
 - mudah dipahami
 - mudah diubah
@@ -1090,70 +1120,302 @@ Karena tujuan utama template ini adalah:
 
 ---
 
-### Tips Penggunaan
-Gunakan nama module dalam bentuk singular
+# ⚙️ Command
+
+### Basic
+
+Membuat module tanpa migration, fields, atau test.
+
+```bash
+php artisan make:module Product
+````
+
+Generator akan membuat:
+
+```
+Domain
+Application
+Infrastructure
+Presentation
+```
+
+tanpa migration dan test.
+
+---
+
+# 🧱 Generate Module + Fields
+
+Jika ingin langsung membuat struktur dengan field entity.
+
+```bash
+php artisan make:module Product \
+--fields="name:string,sku:string,price:decimal,stock:int"
+```
+
+Contoh field yang didukung:
+
+| Type     | Example           |
+| -------- | ----------------- |
+| string   | name:string       |
+| int      | stock:int         |
+| decimal  | price:decimal     |
+| text     | description:text  |
+| nullable | description:text? |
+
+Nullable menggunakan tanda `?`.
+
+Contoh:
+
+```
+description:text?
+```
+
+---
+
+# 🧪 Generate Module + Test
+
+Untuk membuat module sekaligus test:
+
+```bash
+php artisan make:module Product --test
+```
+
+Generator akan membuat:
+
+```
+tests/
+ ├ Feature
+ │ ├ Api
+ │ │ └ ProductApiTest.php
+ │
+ │ └ Web
+ │   └ ProductWebTest.php
+ │
+ └ Unit
+   └ Product
+     └ CreateProductCommandHandlerTest.php
+```
+
+---
+
+# 🗄 Generate Module + Migration
+
+Untuk membuat module sekaligus migration:
+
+```bash
+php artisan make:module Product --migration
+```
+
+File migration akan dibuat di:
+
+```
+database/migrations
+```
+
+Contoh:
+
+```
+create_products_table.php
+```
+
+---
+
+# 🚀 Generate Module Lengkap (Recommended)
+
+Module + Fields + Test + Migration:
+
+```bash
+php artisan make:module Product \
+--fields="name:string,sku:string,price:decimal,stock:int" \
+--test \
+--migration
+```
+
+Ini akan membuat:
+
+```
+Domain
+Application
+Infrastructure
+Presentation
+Migration
+Feature Test
+Unit Test
+```
+
+---
+
+# 📁 Struktur yang Dibuat
+
+Contoh struktur setelah generate module `Product`:
+
+```
+app
+ ├ Domain
+ │  └ Product
+ │     ├ Contracts
+ │     │  └ ProductRepository.php
+ │     │
+ │     └ Entities
+ │        └ Product.php
+ │
+ ├ Application
+ │  └ Product
+ │     ├ DTOs
+ │     ├ Commands
+ │     └ Queries
+ │
+ ├ Infrastructure
+ │  └ Persistence
+ │     └ Eloquent
+ │        ├ Models
+ │        └ Repositories
+ │
+ └ Presentation
+    ├ Http
+    │ ├ Controllers
+    │ │ ├ Api
+    │ │ └ Web
+    │ │
+    │ └ Requests
+    │
+    ├ Routes
+    │  └ products.php
+    │
+    └ Views
+       └ products
+```
+
+---
+
+# 🧠 Tips Penggunaan
+
+Gunakan nama module dalam bentuk **singular**.
 
 Benar:
-```
+
+```bash
 php artisan make:module Product
 ```
 
-Hindari (Salah):
-```
+Hindari:
+
+```bash
 php artisan make:module Products
 ```
 
-Karena generator akan otomatis membuat bentuk plural untuk folder views dan route.
-Generate dulu, lalu sesuaikan
-Jangan berharap semua field langsung lengkap dari generator. Anggap hasil generator sebagai starter structure.
+Karena generator akan otomatis membuat bentuk **plural** untuk:
+
+* views
+* routes
+* table migration
 
 ---
 
-### Contoh Alur Penggunaan
+# 🔧 Setelah Generate Module
 
-Misal ingin membuat module Category.
+Setelah module dibuat, lakukan langkah berikut.
 
-Step 1
+---
+
+## 1️⃣ Tambahkan Binding Repository
+
+Tambahkan binding di `CQRSServiceProvider`.
+
+```php
+use App\Domain\Product\Contracts\ProductRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductRepository;
+
+$this->app->bind(
+    ProductRepository::class,
+    EloquentProductRepository::class
+);
 ```
-php artisan make:module Category
-```
 
-Step 2
-Tambahkan binding repository ke file CQRSServiceProvider.php:
-```
-use App\Domain\Category\Contracts\CategoryRepository;
-use App\Infrastructure\Persistence\Eloquent\Repositories\EloquentCategoryRepository;
+---
 
-$this->app->bind(CategoryRepository::class, EloquentCategoryRepository::class);
-```
+## 2️⃣ Tambahkan Routes
 
-Step 3
 Copy route dari:
-```
-app/Presentation/Routes/categories.php
-```
-ke route utama Web.php atau Api.php.
 
-Step 4
-Buat migration:
 ```
-php artisan make:migration create_categories_table
+app/Presentation/Routes/products.php
 ```
 
-Step 5
-Sesuaikan field dan tampilan sesuai kebutuhan bisnis.
+ke file:
+
+```
+routes/api.php
+```
+
+atau
+
+```
+routes/web.php
+```
 
 ---
 
-### Command
+## 3️⃣ Jalankan Migration
+
+Jika menggunakan `--migration`:
 
 ```bash
-php artisan make:module NamaModule
+php artisan migrate
+```
+
+---
+
+## 4️⃣ Jalankan Test
+
+Jika menggunakan `--test`:
+
+```bash
+php artisan test
+```
+
+---
+
+# ⚠️ Catatan
+
+Generator ini **tidak dimaksudkan menggantikan desain domain**.
+
+Gunakan generator sebagai:
+
+* starter structure
+* bootstrap module
+* template awal
+
+Setelah itu silakan:
+
+* tambah field
+* tambah business rule
+* tambah validation
+* tambah logic domain
+
+sesuai kebutuhan project.
+
+---
+
+# 🧩 Filosofi Template Ini
+
+Template ini dibuat dengan prinsip:
+
+* Clean Architecture
+* CQRS
+* Explicit DTO
+* Simple Repository Pattern
+* No Magic
+
+Dengan tujuan:
+
+* **mudah dipahami**
+* **mudah di-scale**
+* **mudah dirawat**
+* **tidak over-engineered**
 
 ---
 
 ## 📄 21) License
-
-MIT License
 
 MIT License © 2026 Aditya Pratama Febriono This project is open-sourced software licensed under the MIT license.
