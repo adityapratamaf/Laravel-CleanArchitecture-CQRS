@@ -7,8 +7,9 @@ Template ini dirancang agar bisa digunakan untuk:
 
 * REST API
 * Web UI (Blade)
-* Proyek kecil sampai medium
+* Proyek menengah sampai terbesar
 * Starter untuk microservice atau modular monolith
+* Senior laravel architecture template
 
 ---
 
@@ -28,7 +29,7 @@ Template ini dirancang agar bisa digunakan untuk:
 * ✅ Routes berada di `app/Presentation/Routes`
 * ✅ Views berada di `app/Presentation/Views`
 * ✅ Contoh module: **User** dan **Product** + migration + seeder
-* ✅ Ready for create new module with example: php artisan make:module Product
+* ✅ Create new module with artisan
 * ✅ Ready for Packagist template usage
 
 ---
