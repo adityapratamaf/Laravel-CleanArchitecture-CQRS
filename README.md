@@ -42,6 +42,136 @@ Template ini dirancang agar bisa digunakan untuk:
 
 ---
 
+## 🧠 Clean Architecture & CQRS
+
+### 🏛 Clean Architecture
+
+Diperkenalkan oleh **Robert C. Martin (Uncle Bob)**.
+
+Tujuan:
+
+* Memisahkan business logic dari framework
+* Meningkatkan testability
+* Mengurangi ketergantungan pada database & UI
+* Membuat sistem lebih scalable
+
+#### 🔁 Dependency Rule
+
+> Dependensi hanya boleh mengarah ke dalam (ke Domain).
+
+```text
+Framework / DB / UI
+        ↓
+Infrastructure
+        ↓
+Application
+        ↓
+Domain (Core Business)
+```
+
+Domain:
+
+* Tidak tahu Laravel
+* Tidak tahu HTTP
+* Tidak tahu database
+
+---
+
+### ⚡ CQRS
+
+Diperkenalkan oleh **Greg Young**.
+
+Memisahkan:
+
+* ✍ Command → Mengubah state
+* 📖 Query → Mengambil data
+
+Tujuan:
+
+* Optimasi read & write
+* Mengurangi kompleksitas
+* Memudahkan scaling
+
+---
+
+## 🚌 CommandBus & QueryBus
+
+Untuk menghindari tight coupling antara Controller dan Handler, digunakan mediator pattern:
+
+* 🚌 CommandBus
+* 🚌 QueryBus
+
+### 🚌 CommandBus
+
+Menangani operasi yang **mengubah state**.
+
+Flow:
+
+```text
+Controller → Command → CommandBus → Handler → Repository → Database
+```
+
+Contoh:
+
+```php
+$command = new CreateUserCommand($name, $email, $password);
+$this->commandBus->dispatch($command);
+```
+
+Karakteristik:
+
+* Fokus pada perubahan data
+* Tidak untuk mengambil data kompleks
+* 1 Command = 1 Handler
+
+---
+
+### 🚌 QueryBus
+
+Menangani operasi **read-only**.
+
+Flow:
+
+```text
+Controller → Query → QueryBus → Handler → Read Model → Response
+```
+
+Contoh:
+
+```php
+$query = new ListUsersQuery($search, $page, $perPage);
+$result = $this->queryBus->ask($query);
+```
+
+Karakteristik:
+
+* Tidak mengubah state
+* Return DTO / array / pagination
+* Terpisah dari write logic
+
+---
+
+## 🔄 Flow CQRS
+
+### ✍ Write Flow
+
+1. Controller menerima request
+2. Validasi via FormRequest
+3. Membuat Command
+4. Dispatch ke CommandBus
+5. Handler memanggil Repository
+6. Simpan ke database
+
+### 📖 Read Flow
+
+1. Controller menerima request
+2. Membuat Query
+3. QueryBus ask ke Handler
+4. Handler ambil data
+5. Return data + meta pagination
+
+---
+
 ## 🧠 Architecture Overview
 
 Project ini menggunakan pendekatan **Clean Architecture** dengan pembagian layer berikut:
