@@ -19,6 +19,8 @@ use App\Application\Product\Queries\ListProducts\ListProductsQuery;
 use App\Presentation\Http\Requests\Product\StoreProductRequest;
 use App\Presentation\Http\Requests\Product\UpdateProductRequest;
 
+use App\Support\Helpers\FileUpload;
+
 class ProductApiController
 {
     public function index(Request $request, QueryBus $queryBus)
@@ -54,12 +56,17 @@ class ProductApiController
 
     public function store(StoreProductRequest $request, CommandBus $commandBus)
     {
+        $imagePath = $request->hasFile('image')
+            ? FileUpload::storePublic($request->file('image'), 'products')
+            : null;
+
         $dto = new CreateProductDTO(
             name: $request->string('name')->toString(),
             sku: $request->string('sku')->toString(),
             price: (float) $request->input('price'),
             stock: (int) $request->input('stock'),
             description: $request->filled('description') ? (string) $request->input('description') : null,
+            image: $imagePath,
         );
 
         $p = $commandBus->dispatch(new CreateProductCommand($dto));
@@ -71,6 +78,8 @@ class ProductApiController
             'price' => $p->price,
             'stock' => $p->stock,
             'description' => $p->description,
+            'image' => $p->image,
+            'image_url' => $p->imageUrl,
         ], 201);
     }
 
@@ -90,6 +99,10 @@ class ProductApiController
 
     public function update(int $id, UpdateProductRequest $request, CommandBus $commandBus)
     {
+        $imagePath = $request->hasFile('image')
+            ? FileUpload::storePublic($request->file('image'), 'products')
+            : null;
+
         $dto = new UpdateProductDTO(
             id: $id,
             name: $request->string('name')->toString(),
@@ -97,6 +110,7 @@ class ProductApiController
             price: (float) $request->input('price'),
             stock: (int) $request->input('stock'),
             description: $request->filled('description') ? (string) $request->input('description') : null,
+            image: $imagePath,
         );
 
         $p = $commandBus->dispatch(new UpdateProductCommand($dto));
@@ -108,6 +122,8 @@ class ProductApiController
             'price' => $p->price,
             'stock' => $p->stock,
             'description' => $p->description,
+            'image' => $p->image,
+            'image_url' => $p->imageUrl,
         ]);
     }
 

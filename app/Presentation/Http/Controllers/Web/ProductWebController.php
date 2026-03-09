@@ -21,6 +21,7 @@ use App\Presentation\Http\Requests\Product\StoreProductRequest;
 use App\Presentation\Http\Requests\Product\UpdateProductRequest;
 
 use App\Support\Helpers\PaginationLinks;
+use App\Support\Helpers\FileUpload;
 
 class ProductWebController
 {
@@ -72,12 +73,17 @@ class ProductWebController
     public function store(StoreProductRequest $request, CommandBus $commandBus)
     {
         try {
+            $imagePath = $request->hasFile('image')
+                ? FileUpload::storePublic($request->file('image'), 'products')
+                : null;
+
             $dto = new CreateProductDTO(
                 name: $request->string('name')->toString(),
                 sku: $request->string('sku')->toString(),
                 price: (float) $request->input('price'),
                 stock: (int) $request->input('stock'),
                 description: $request->filled('description') ? (string) $request->input('description') : null,
+                image: $imagePath,
             );
 
             $commandBus->dispatch(new CreateProductCommand($dto));
@@ -117,6 +123,10 @@ class ProductWebController
     public function update(int $id, UpdateProductRequest $request, CommandBus $commandBus)
     {
         try {
+            $imagePath = $request->hasFile('image')
+                ? FileUpload::storePublic($request->file('image'), 'products')
+                : null;
+
             $dto = new UpdateProductDTO(
                 id: $id,
                 name: $request->string('name')->toString(),
@@ -124,6 +134,7 @@ class ProductWebController
                 price: (float) $request->input('price'),
                 stock: (int) $request->input('stock'),
                 description: $request->filled('description') ? (string) $request->input('description') : null,
+                image: $imagePath,
             );
 
             $commandBus->dispatch(new UpdateProductCommand($dto));

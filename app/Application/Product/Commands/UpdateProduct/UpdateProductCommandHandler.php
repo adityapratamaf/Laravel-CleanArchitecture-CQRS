@@ -4,6 +4,7 @@ namespace App\Application\Product\Commands\UpdateProduct;
 
 use App\Application\Product\DTOs\ProductDTO;
 use App\Domain\Product\Contracts\ProductRepository;
+use App\Support\Helpers\FileUpload;
 
 class UpdateProductCommandHandler
 {
@@ -24,11 +25,19 @@ class UpdateProductCommandHandler
             throw new \DomainException('SKU already exists');
         }
 
+        if ($data->image && $existing->image && $data->image !== $existing->image) {
+            FileUpload::deletePublic($existing->image);
+        }
+
         $existing->name = $data->name;
         $existing->sku = $data->sku;
         $existing->price = $data->price;
         $existing->stock = $data->stock;
         $existing->description = $data->description;
+
+        if ($data->image !== null) {
+            $existing->image = $data->image;
+        }
 
         $updated = $this->products->update($existing);
 
@@ -38,7 +47,9 @@ class UpdateProductCommandHandler
             $updated->sku,
             $updated->price,
             $updated->stock,
-            $updated->description
+            $updated->description,
+            $updated->image,
+            FileUpload::publicUrl($updated->image),
         );
     }
 }

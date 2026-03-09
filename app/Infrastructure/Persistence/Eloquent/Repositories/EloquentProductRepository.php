@@ -16,6 +16,7 @@ class EloquentProductRepository implements ProductRepository
             'price' => $product->price,
             'stock' => $product->stock,
             'description' => $product->description,
+            'image' => $product->image
         ]);
 
         return new Product(
@@ -24,7 +25,8 @@ class EloquentProductRepository implements ProductRepository
             $row->sku,
             (float) $row->price,
             (int) $row->stock,
-            $row->description
+            $row->description,
+            $row->image
         );
     }
 
@@ -37,6 +39,7 @@ class EloquentProductRepository implements ProductRepository
         $row->price = $product->price;
         $row->stock = $product->stock;
         $row->description = $product->description;
+        $row->image = $product->image;
         $row->save();
 
         return new Product(
@@ -45,7 +48,8 @@ class EloquentProductRepository implements ProductRepository
             $row->sku,
             (float) $row->price,
             (int) $row->stock,
-            $row->description
+            $row->description,
+            $row->image
         );
     }
 
@@ -65,7 +69,8 @@ class EloquentProductRepository implements ProductRepository
             $row->sku,
             (float) $row->price,
             (int) $row->stock,
-            $row->description
+            $row->description,
+            $row->image
         );
     }
 
@@ -80,7 +85,8 @@ class EloquentProductRepository implements ProductRepository
             $row->sku,
             (float) $row->price,
             (int) $row->stock,
-            $row->description
+            $row->description,
+            $row->image
         );
     }
 }

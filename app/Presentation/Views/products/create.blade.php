@@ -2,7 +2,7 @@
 
 @include('partials.flash')
 
-<form method="POST" action="/products">
+<form method="POST" action="/products" enctype="multipart/form-data">
   @csrf
 
   <p>
@@ -25,7 +25,7 @@
 
   <p>
     <label>Stock</label><br/>
-    <input name="stock" value="{{ old('stock', 0) }}" />
+    <input type="number" name="stock" value="{{ old('stock', 0) }}" />
     @error('stock') <div style="color:red">{{ $message }}</div> @enderror
   </p>
 
@@ -33,6 +33,12 @@
     <label>Description</label><br/>
     <textarea name="description">{{ old('description') }}</textarea>
     @error('description') <div style="color:red">{{ $message }}</div> @enderror
+  </p>
+
+  <p>
+    <label>Image</label><br/>
+    <input type="file" name="image" />
+    @error('image') <div style="color:red">{{ $message }}</div> @enderror
   </p>
 
   <button type="submit">Save</button>
