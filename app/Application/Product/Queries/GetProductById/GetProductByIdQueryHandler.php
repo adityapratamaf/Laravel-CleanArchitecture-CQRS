@@ -4,6 +4,7 @@ namespace App\Application\Product\Queries\GetProductById;
 
 use App\Application\Product\DTOs\ProductDTO;
 use App\Domain\Product\Contracts\ProductRepository;
+use App\Support\Helpers\FileUpload;
 
 class GetProductByIdQueryHandler
 {
@@ -16,6 +17,16 @@ class GetProductByIdQueryHandler
             throw new \DomainException('Product not found');
         }
 
-        return new ProductDTO($p->id, $p->name, $p->sku, $p->price, $p->stock, $p->description);
+        return new ProductDTO
+        (
+            $p->id, 
+            $p->name, 
+            $p->sku, 
+            $p->price, 
+            $p->stock, 
+            $p->description,
+            $p->image,
+            FileUpload::publicUrl($p->image),
+        );
     }
 }

@@ -2,7 +2,7 @@
 
 @include('partials.flash')
 
-<form method="POST" action="/products/{{ $product->id }}">
+<form method="POST" action="/products/{{ $product->id }}" enctype="multipart/form-data">
   @csrf
   @method('PUT')
 
@@ -36,6 +36,42 @@
     @error('description') <div style="color:red">{{ $message }}</div> @enderror
   </p>
 
+  <p>
+    <label>Image</label><br/>
+    <input type="file" name="image" id="image" accept="image/*" />
+    @error('image') <div style="color:red">{{ $message }}</div> @enderror
+  </p>
+
+  <p>
+    <img
+      id="image-preview"
+      src="{{ $product->imageUrl ?? '' }}"
+      alt="{{ $product->name }}"
+      width="120"
+      style="{{ $product->imageUrl ? '' : 'display:none;' }}"
+    >
+  </p>
+
   <button type="submit">Update</button>
   <a href="/products/{{ $product->id }}">Cancel</a>
 </form>
+
+<script>
+  document.getElementById('image').addEventListener('change', function (event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('image-preview');
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    };
+
+    reader.readAsDataURL(file);
+  });
+</script>

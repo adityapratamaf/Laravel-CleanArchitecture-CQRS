@@ -11,5 +11,6 @@ class Product
         public float $price,
         public int $stock,
         public ?string $description,
+        public ?string $image,
     ) {}
 }

@@ -11,5 +11,7 @@ class ProductDTO
         public readonly float $price,
         public readonly int $stock,
         public readonly ?string $description,
+        public readonly ?string $image,
+        public readonly ?string $imageUrl,
     ) {}
 }

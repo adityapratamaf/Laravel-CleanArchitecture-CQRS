@@ -6,6 +6,7 @@ use App\Application\Product\DTOs\ProductDTO;
 use App\Application\Product\DTOs\PagedProductsDTO;
 use App\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use App\Support\Helpers\Pagination;
+use App\Support\Helpers\FileUpload;
 
 class ListProductsQueryHandler
 {
@@ -38,7 +39,9 @@ class ListProductsQueryHandler
                 $row->sku,
                 (float) $row->price,
                 (int) $row->stock,
-                $row->description
+                $row->description,
+                $row->image,
+                FileUpload::publicUrl($row->image),
             );
         }
 

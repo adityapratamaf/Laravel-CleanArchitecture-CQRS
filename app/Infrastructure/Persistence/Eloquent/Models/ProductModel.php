@@ -13,7 +13,7 @@ class ProductModel extends Model
     protected $table = 'products';
 
     protected $fillable = [
-        'name', 'sku', 'price', 'stock', 'description'
+        'name', 'sku', 'price', 'stock', 'description', 'image'
     ];
 
     protected static function newFactory()

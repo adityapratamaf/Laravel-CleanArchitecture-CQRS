@@ -17,6 +17,7 @@ class ProductModelFactory extends Factory
             'price' => $this->faker->randomFloat(2, 1000, 999999),
             'stock' => $this->faker->numberBetween(0, 200),
             'description' => $this->faker->optional()->sentence(),
+            'image' => 'https://via.placeholder.com/640x480?text=Product'
         ];
     }
 }

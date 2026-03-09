@@ -5,6 +5,7 @@ namespace App\Application\Product\Commands\CreateProduct;
 use App\Application\Product\DTOs\ProductDTO;
 use App\Domain\Product\Contracts\ProductRepository;
 use App\Domain\Product\Entities\Product;
+use App\Support\Helpers\FileUpload;
 
 class CreateProductCommandHandler
 {
@@ -24,7 +25,8 @@ class CreateProductCommandHandler
             sku: $data->sku,
             price: $data->price,
             stock: $data->stock,
-            description: $data->description
+            description: $data->description,
+            image: $data->image
         );
 
         $created = $this->products->create($entity);
@@ -35,7 +37,9 @@ class CreateProductCommandHandler
             $created->sku,
             $created->price,
             $created->stock,
-            $created->description
+            $created->description,
+            $created->image,
+            FileUpload::publicUrl($created->image),
         );
     }
 }

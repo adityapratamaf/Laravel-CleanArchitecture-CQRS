@@ -42,13 +42,13 @@
 <table border="1" cellpadding="8" cellspacing="0">
   <thead>
     <tr>
-        <!-- <th>ID</th><th>Name</th><th>SKU</th><th>Price</th><th>Stock</th><th>Action</th> -->
         <th>No</th>
         <th><a href="{{ $sortUrl('id') }}">ID{!! $sortIcon('id') !!}</a></th>
         <th><a href="{{ $sortUrl('name') }}">Name{!! $sortIcon('name') !!}</a></th>
         <th><a href="{{ $sortUrl('sku') }}">Sku{!! $sortIcon('sku') !!}</a></th>
         <th><a href="{{ $sortUrl('price') }}">Price{!! $sortIcon('price') !!}</a></th>
         <th><a href="{{ $sortUrl('stock') }}">Stock{!! $sortIcon('stock') !!}</a></th>
+        <th>Image</th>
         <th>Action</th>
     </tr>
   </thead>
@@ -61,6 +61,13 @@
         <td>{{ $p->sku }}</td>
         <td>{{ number_format($p->price, 2) }}</td>
         <td>{{ $p->stock }}</td>
+        <td>
+          @if($p->imageUrl)
+            <img src="{{ $p->imageUrl }}" alt="{{ $p->name }}" width="60">
+          @else
+            -
+          @endif
+        </td>
         <td>
           <a href="/products/{{ $p->id }}/edit">Edit</a>
           <form method="POST" action="/products/{{ $p->id }}" style="display:inline">

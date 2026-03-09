@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('price', 12, 2);
             $table->unsignedInteger('stock')->default(0);
             $table->text('description')->nullable();
+            $table->string('image')->nullable();
             $table->timestamps();
 
             $table->index(['name', 'sku']);
