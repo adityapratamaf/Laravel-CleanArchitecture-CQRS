@@ -14,7 +14,7 @@ class MakeModuleCommand extends Command
                             {--test : Generate tests}
                             {--migration : Generate migration}';
 
-    protected $description = 'Generate a Clean Architecture + CQRS module';
+    protected $description = 'Generate a Clean Architecture + CQRS Module';
 
     public function handle(): int
     {
